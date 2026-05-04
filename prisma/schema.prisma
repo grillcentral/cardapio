@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Restaurant {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique @default("adonay")
+  name        String   @default("Adonay Lanches")
+  description String?
+  phone       String?
+  whatsapp    String   @default("")
+  address     String?
+  logoUrl     String?
+  bannerUrl   String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  admins       AdminUser[]
+  categories   Category[]
+  products     Product[]
+  orders       Order[]
+  openingHours OpeningHour[]
+  banners      Banner[]
+}
+
+model AdminUser {
+  id           Int        @id @default(autoincrement())
+  restaurantId Int
+  email        String     @unique
+  passwordHash String
+  name         String
+  role         String     @default("OWNER")
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+}
+
+model Category {
+  id           Int        @id @default(autoincrement())
+  restaurantId Int
+  name         String
+  description  String?
+  emoji        String?    @default("🍽️")
+  periodTag    String?
+  sortOrder    Int        @default(0)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  products     Product[]
+}
+
+model Product {
+  id           Int        @id @default(autoincrement())
+  restaurantId Int
+  categoryId   Int
+  name         String
+  description  String?
+  price        Float
+  imageUrl     String?
+  isActive     Boolean    @default(true)
+  isFeatured   Boolean    @default(false)
+  sortOrder    Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  category     Category   @relation(fields: [categoryId], references: [id])
+  orderItems   OrderItem[]
+}
+
+model Order {
+  id            Int         @id @default(autoincrement())
+  restaurantId  Int
+  customerName  String?
+  customerPhone String?
+  orderType     String
+  payment       String
+  subtotal      Float       @default(0)
+  deliveryFee   Float       @default(0)
+  total         Float       @default(0)
+  neighborhood  String?
+  addressJson   String?
+  status        String      @default("RECEIVED")
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  restaurant    Restaurant  @relation(fields: [restaurantId], references: [id])
+  items         OrderItem[]
+}
+
+model OrderItem {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  productId Int?
+  name      String
+  price     Float
+  qty       Int
+  obs       String?
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product? @relation(fields: [productId], references: [id])
+}
+
+model OpeningHour {
+  id           Int        @id @default(autoincrement())
+  restaurantId Int
+  dayOfWeek    Int
+  openTime     String?
+  closeTime    String?
+  isOpen       Boolean    @default(true)
+  periodName   String?
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+}
+
+model Banner {
+  id           Int        @id @default(autoincrement())
+  restaurantId Int
+  imageUrl     String
+  title        String?
+  sortOrder    Int        @default(0)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+}

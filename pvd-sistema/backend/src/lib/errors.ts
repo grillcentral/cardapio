@@ -1,0 +1,51 @@
+/**
+ * Erros customizados do domínio.
+ * Todos extendem AppError — o errorHandler global converte em resposta HTTP.
+ */
+
+export class AppError extends Error {
+  constructor(
+    public readonly message: string,
+    public readonly statusCode: number = 500,
+    public readonly code: string = 'INTERNAL_ERROR'
+  ) {
+    super(message);
+    this.name = this.constructor.name;
+  }
+}
+
+export class ValidationError extends AppError {
+  constructor(message: string, public readonly details?: unknown) {
+    super(message, 400, 'VALIDATION_ERROR');
+  }
+}
+
+export class UnauthorizedError extends AppError {
+  constructor(message = 'Não autenticado') {
+    super(message, 401, 'UNAUTHORIZED');
+  }
+}
+
+export class ForbiddenError extends AppError {
+  constructor(message = 'Sem permissão') {
+    super(message, 403, 'FORBIDDEN');
+  }
+}
+
+export class NotFoundError extends AppError {
+  constructor(resource = 'Recurso') {
+    super(`${resource} não encontrado`, 404, 'NOT_FOUND');
+  }
+}
+
+export class ConflictError extends AppError {
+  constructor(message: string) {
+    super(message, 409, 'CONFLICT');
+  }
+}
+
+export class BusinessRuleError extends AppError {
+  constructor(message: string) {
+    super(message, 422, 'BUSINESS_RULE_VIOLATION');
+  }
+}

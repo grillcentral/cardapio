@@ -1,0 +1,95 @@
+import type { MenuCategory } from "@/types/menu";
+
+export const menuData: MenuCategory[] = [
+  {
+    category: "Pratos Executivos",
+    id: "pratos-executivos",
+    items: [
+      { name: "Carne na Chapa (em iscas)", desc: "(arroz macarrão, maionese, farofa, fritas, queijo coalho)", price: "R$ 25,00", img: "https://instadelivery-public.nyc3.cdn.digitaloceanspaces.com/itens/1770858678698d28b60e873_75_75.jpeg" },
+      { name: "Filé de frango grelhado", desc: "(arroz, macarrão, maionese ,fritas e farofa)", price: "R$ 20,00", img: "https://instadelivery-public.nyc3.cdn.digitaloceanspaces.com/itens/177285114769ab8fcb8dc4f_75_75.jpeg" },
+      { name: "Strogonoff de frango", desc: "(arroz, purê, batata palha e farofa)", price: "R$ 22,00", img: "https://instadelivery-public.nyc3.cdn.digitaloceanspaces.com/itens/1770859072698d2a406c4ff_75_75.jpeg" },
+      { name: "Strogonoff de carne", desc: "arroz, purê, batata palha e farofa", price: "R$ 22,00", img: "https://instadelivery-public.nyc3.cdn.digitaloceanspaces.com/itens/177319053969b0bd8b6e45c_75_75.jpeg" },
+      { name: "Panqueca gratinada de frango", desc: "(arroz, purê, batata palha e farofa)", price: "R$ 20,00", img: "https://instadelivery-public.nyc3.cdn.digitaloceanspaces.com/itens/177285085369ab8ea52663c_75_75.jpeg" },
+      { name: "Panqueca gratinada de carne", desc: "(arroz, purê, batata palha e farofa)", price: "R$ 20,00", img: "https://instadelivery-public.nyc3.cdn.digitaloceanspaces.com/itens/177319074969b0be5d60c55_75_75.jpeg" },
+      { name: "Parmegiana de frango", desc: "(arroz, purê e fritas)", price: "R$ 25,00", img: "https://instadelivery-public.nyc3.cdn.digitaloceanspaces.com/itens/177285096469ab8f3c25e81_75_75.jpeg" },
+      { name: "Parmegiana de carne", desc: "(arroz, purê e fritas)", price: "R$ 25,00", img: undefined },
+      { name: "Filé de frango a milanesa", desc: "(arroz, macarrão, feijão, maionese, e farofa)", price: "R$ 22,00", img: "https://instadelivery-public.nyc3.cdn.digitaloceanspaces.com/itens/177285102169ab8f69df2f8_75_75.jpeg" },
+    ],
+  },
+  {
+    category: "Combos",
+    id: "combos",
+    items: [
+      { name: "Combo Solteirinho", desc: "(1 x-salada + 150g de batata + 1 coca em lata)", price: "R$ 25,00", img: "https://instadelivery-public.nyc3.cdn.digitaloceanspaces.com/itens/177285199369ab93f1b0a94_75_75.jpeg" },
+      { name: "Combo Casal", desc: "(2 x-saladas + 300g de batata + 2 coca em lata)", price: "R$ 45,00", img: undefined },
+      { name: "Combo Família", desc: "(4 x-saladas + 600g de batata + 4 coca em lata)", price: "R$ 85,00", img: undefined },
+      { name: "Combo Kikão", desc: "(2 kikões + 300g de batata + 2 coca em lata)", price: "R$ 40,00", img: undefined },
+    ],
+  },
+  {
+    category: "X-Saladas",
+    id: "x-saladas",
+    items: [
+      { name: "X-Salada Simples", desc: "(pão, hamburger, alface, tomate, maionese)", price: "R$ 12,00", img: undefined },
+      { name: "X-Salada Especial", desc: "(pão, hamburger, bacon, alface, tomate, maionese, queijo)", price: "R$ 15,00", img: undefined },
+      { name: "X-Tudo", desc: "(pão, hamburger, bacon, ovo, alface, tomate, maionese, queijo)", price: "R$ 18,00", img: undefined },
+      { name: "X-Frango", desc: "(pão, frango, alface, tomate, maionese)", price: "R$ 12,00", img: undefined },
+      { name: "X-Frango Especial", desc: "(pão, frango, bacon, alface, tomate, maionese, queijo)", price: "R$ 15,00", img: undefined },
+    ],
+  },
+  {
+    category: "Porções de Batata",
+    id: "porcoes-batata",
+    items: [
+      { name: "• Batata P (150g)", desc: undefined, price: "R$ 10,00", img: "https://instadelivery-public.nyc3.cdn.digitaloceanspaces.com/itens/177285215069ab94ce428b5_75_75.jpeg" },
+      { name: "• Batata M (200g)", desc: undefined, price: "R$ 15,00", img: "https://instadelivery-public.nyc3.cdn.digitaloceanspaces.com/itens/177285219069ab94fe62de5_75_75.jpeg" },
+      { name: "• Batata G (300g)", desc: undefined, price: "R$ 20,00", img: "https://instadelivery-public.nyc3.cdn.digitaloceanspaces.com/itens/177285223569ab952793b5e_75_75.jpeg" },
+    ],
+  },
+  {
+    category: "Porções de pastelzinhos",
+    id: "porcoes-pastelzinhos",
+    items: [
+      { name: "Pastelzinho de frango (6 unidades)", desc: undefined, price: "R$ 12,00", img: undefined },
+      { name: "Pastelzinho de carne (6 unidades)", desc: undefined, price: "R$ 12,00", img: undefined },
+      { name: "Pastelzinho misto (6 unidades)", desc: undefined, price: "R$ 12,00", img: undefined },
+    ],
+  },
+  {
+    category: "Refrigerantes",
+    id: "refrigerantes",
+    items: [
+      { name: "Coca-Cola lata 350ml", desc: undefined, price: "R$ 5,00", img: undefined },
+      { name: "Guaraná Antarctica lata 350ml", desc: undefined, price: "R$ 5,00", img: undefined },
+      { name: "Fanta Laranja lata 350ml", desc: undefined, price: "R$ 5,00", img: undefined },
+      { name: "Sprite lata 350ml", desc: undefined, price: "R$ 5,00", img: undefined },
+      { name: "Coca-Cola 600ml", desc: undefined, price: "R$ 8,00", img: undefined },
+      { name: "Guaraná Antarctica 600ml", desc: undefined, price: "R$ 8,00", img: undefined },
+      { name: "Água mineral 500ml", desc: undefined, price: "R$ 3,00", img: undefined },
+    ],
+  },
+  {
+    category: "Sucos naturais",
+    id: "sucos-naturais",
+    items: [
+      { name: "Laranja 300 ml", desc: undefined, price: "R$ 7,00", img: undefined },
+      { name: "Acerola 300 ml", desc: undefined, price: "R$ 7,00", img: "https://instadelivery-public.nyc3.cdn.digitaloceanspaces.com/itens/177285263169ab97c3ab64e_75_75.jpeg" },
+      { name: "Cupuaçu 300 ml", desc: undefined, price: "R$ 7,00", img: undefined },
+      { name: "Manga 300 ml", desc: undefined, price: "R$ 7,00", img: undefined },
+      { name: "Graviola 300 ml", desc: undefined, price: "R$ 7,00", img: undefined },
+      { name: "Goiaba 300 ml", desc: undefined, price: "R$ 7,00", img: undefined },
+      { name: "Maracujá 300 ml", desc: undefined, price: "R$ 7,00", img: undefined },
+      { name: "Abacaxi 300 ml", desc: undefined, price: "R$ 7,00", img: undefined },
+      { name: "Morango 300 ml", desc: undefined, price: "R$ 7,00", img: undefined },
+      { name: "Laranja 1 litro", desc: undefined, price: "R$ 18,00", img: undefined },
+      { name: "Acerola 1 litro", desc: undefined, price: "R$ 18,00", img: undefined },
+      { name: "Cupuaçu 1 litro", desc: undefined, price: "R$ 18,00", img: "https://instadelivery-public.nyc3.cdn.digitaloceanspaces.com/itens/177285273069ab9838f10ab_75_75.jpeg" },
+      { name: "Graviola 1 litro", desc: undefined, price: "R$ 18,00", img: "https://instadelivery-public.nyc3.cdn.digitaloceanspaces.com/itens/177285280369ab98c38b5c9_75_75.jpeg" },
+      { name: "Manga 1 litro", desc: undefined, price: "R$ 18,00", img: undefined },
+      { name: "Acerola 1 litro", desc: undefined, price: "R$ 18,00", img: undefined },
+      { name: "Goiaba 1 litro", desc: undefined, price: "R$ 18,00", img: "https://instadelivery-public.nyc3.cdn.digitaloceanspaces.com/itens/177285291769ab994f5c5b6_75_75.jpeg" },
+      { name: "Maracujá 1 litro", desc: undefined, price: "R$ 18,00", img: undefined },
+      { name: "Morango 1 litro", desc: undefined, price: "R$ 18,00", img: undefined },
+    ],
+  },
+];

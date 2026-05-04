@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+  }
+  body {
+    @apply font-sans antialiased;
+    background: linear-gradient(180deg, #1a0f0a 0%, #0f0807 100%);
+    color: #fff;
+  }
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
+  *::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
+  *::-webkit-scrollbar-thumb { background: rgba(232,93,47,0.4); border-radius: 4px; }
+  *::-webkit-scrollbar-thumb:hover { background: rgba(232,93,47,0.6); }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn text-white;
+    background: linear-gradient(135deg, #E85D2F, #C73E18);
+  }
+  .btn-ghost {
+    @apply btn bg-white/5 text-stone-300 hover:bg-white/10;
+  }
+  .input {
+    @apply w-full px-4 py-2.5 rounded-lg bg-black/40 border border-brand-500/30 text-white focus:outline-none focus:border-brand-500 transition-colors;
+  }
+  .label {
+    @apply block text-xs text-stone-400 font-semibold uppercase tracking-wide;
+  }
+  .card {
+    @apply rounded-xl bg-white/[0.03] border border-white/[0.08];
+  }
+  .display-font {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 2px;
+  }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.slide-in { animation: slideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.pulse-dot { animation: pulseDot 1.5s ease-in-out infinite; }

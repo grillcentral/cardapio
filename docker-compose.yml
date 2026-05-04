@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: adonay-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: adonay
+      POSTGRES_PASSWORD: adonay2025
+      POSTGRES_DB: adonay_cardapio
+    volumes:
+      - adonay_pg_data:/var/lib/postgresql/data
+    networks:
+      - adonay-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adonay -d adonay_cardapio"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    image: ai-website-cloner:latest
+    container_name: ai-website-cloner
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      - DB_PATH=/data/lanche.db
+      - DATABASE_URL=postgresql://adonay:adonay2025@postgres:5432/adonay_cardapio
+      - ADMIN_JWT_SECRET=adonay_super_secret_jwt_2025_change_in_production
+      - ADMIN_SEED_EMAIL=admin@adonay.com
+      - ADMIN_SEED_PASSWORD=Adonay@2025
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - lanche_data:/data
+      - adonay_uploads:/app/public/uploads
+    networks:
+      - adonay-net
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/', r => process.exit(r.statusCode === 200 ? 0 : 1))\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  lanche_data:
+    driver: local
+  adonay_pg_data:
+    driver: local
+  adonay_uploads:
+    driver: local
+
+networks:
+  adonay-net:
+    driver: bridge

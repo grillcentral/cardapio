@@ -1,0 +1,64 @@
+============================================================
+  BACKUP COMPLETO - LANCHE ADONAY
+  Data: 20/04/2026
+============================================================
+
+CONTEUDO DESTA PASTA:
+---------------------
+
+1. cardapio-adonay/
+   - Site do cardapio online (Next.js 16 + TypeScript)
+   - Painel admin em /admin
+   - Banco de dados: PostgreSQL (via Prisma)
+   - Para rodar: ver instrucoes abaixo
+
+2. pvd-sistema/
+   - Sistema PVD (backend + frontend)
+   - backend/ : API Node.js + Prisma
+   - frontend/ : React + Vite
+   - docker-compose.yml incluso
+
+============================================================
+COMO RODAR O CARDAPIO (cardapio-adonay/)
+============================================================
+
+Precisa ter instalado: Docker + Docker Compose
+
+1. Entre na pasta:
+   cd cardapio-adonay
+
+2. Suba os containers:
+   docker compose up -d --build
+
+3. Acesse:
+   - Site:  http://localhost:3000
+   - Admin: http://localhost:3000/admin/login
+   - Email:    admin@adonay.com
+   - Senha:    Adonay@2025
+
+============================================================
+COMO RODAR O PVD (pvd-sistema/)
+============================================================
+
+Precisa ter instalado: Docker + Docker Compose
+
+1. Entre na pasta:
+   cd pvd-sistema
+
+2. Suba os containers:
+   docker compose up -d --build
+
+3. Acesse conforme porta configurada no docker-compose.yml
+
+============================================================
+OBSERVACOES
+============================================================
+
+- As pastas node_modules e .next NAO foram incluidas
+  (sao geradas automaticamente ao rodar o projeto)
+
+- As imagens enviadas pelo admin ficam no Docker volume
+  e NAO estao neste backup. Para fazer backup das imagens,
+  exporte o volume: docker volume export adonay_uploads
+
+============================================================
