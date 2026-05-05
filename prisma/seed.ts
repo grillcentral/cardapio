@@ -19,33 +19,30 @@ async function main() {
   const password = process.env.ADMIN_SEED_PASSWORD || "123456";
   const passwordHash = await bcrypt.hash(password, 12);
 
-  // Always upsert admin user (runs even if DB already seeded)
   const existing = await prisma.restaurant.findFirst();
-  const restaurantId = existing?.id ?? 1;
-
-  const admin = await prisma.adminUser.upsert({
-    where: { email },
-    update: { passwordHash, isActive: true },
-    create: {
-      restaurantId,
-      email,
-      passwordHash,
-      name: "Admin",
-      role: "OWNER",
-      isActive: true,
-    },
-  });
-
-  console.log(`Admin upserted: ${admin.email}`);
 
   if (existing) {
+    // DB already seeded — just upsert the admin
+    const admin = await prisma.adminUser.upsert({
+      where: { email },
+      update: { passwordHash, isActive: true },
+      create: {
+        restaurantId: existing.id,
+        email,
+        passwordHash,
+        name: "Admin",
+        role: "OWNER",
+        isActive: true,
+      },
+    });
+    console.log(`Admin upserted: ${admin.email}`);
     console.log("Database already seeded. Skipping restaurant/products.");
     return;
   }
 
   console.log("Seeding database...");
 
-  // Create restaurant
+  // Create restaurant first so AdminUser FK is satisfied
   const restaurant = await prisma.restaurant.create({
     data: {
       slug: "grillcentral",
@@ -59,6 +56,21 @@ async function main() {
   });
 
   console.log(`Restaurant created: ${restaurant.name}`);
+
+  // Create admin user now that restaurant exists
+  const admin = await prisma.adminUser.upsert({
+    where: { email },
+    update: { passwordHash, isActive: true },
+    create: {
+      restaurantId: restaurant.id,
+      email,
+      passwordHash,
+      name: "Admin",
+      role: "OWNER",
+      isActive: true,
+    },
+  });
+  console.log(`Admin upserted: ${admin.email}`);
 
   // Create opening hours (default: Mon-Sat lunch 11-15, every day dinner 19-23)
   const dayNames = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
