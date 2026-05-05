@@ -1,0 +1,152 @@
+[
+  {
+    "id": "xs001",
+    "name": "X Salada",
+    "price": 29.9,
+    "category": "XIS",
+    "aliases": ["x salada", "xis salada", "salada"]
+  },
+  {
+    "id": "xc001",
+    "name": "X Coração",
+    "price": 31.0,
+    "category": "XIS",
+    "aliases": ["x coracao", "xis coracao", "coração", "coracao"]
+  },
+  {
+    "id": "xcal001",
+    "name": "X Calabresa",
+    "price": 31.0,
+    "category": "XIS",
+    "aliases": ["x calabresa", "xis calabresa", "calabresa"]
+  },
+  {
+    "id": "xcos001",
+    "name": "X Costelão",
+    "price": 33.0,
+    "category": "XIS",
+    "aliases": ["x costelao", "xis costelao", "costelao", "costelão"]
+  },
+  {
+    "id": "xb001",
+    "name": "X Bacon",
+    "price": 33.0,
+    "category": "XIS",
+    "aliases": ["x bacon", "xbacon", "bacon", "xis bacon"]
+  },
+  {
+    "id": "xfm001",
+    "name": "X Filé Mignon",
+    "price": 45.0,
+    "category": "XIS",
+    "aliases": ["x file", "x file mignon", "file mignon", "filé mignon"]
+  },
+  {
+    "id": "xa001",
+    "name": "X Alcatra",
+    "price": 34.0,
+    "category": "XIS",
+    "aliases": ["x alcatra", "alcatra"]
+  },
+  {
+    "id": "xf001",
+    "name": "X Frango",
+    "price": 31.0,
+    "category": "XIS",
+    "aliases": ["x frango", "frango"]
+  },
+
+  {
+    "id": "pan001",
+    "name": "Pão de Alho Negro com Alcatra",
+    "price": 42.0,
+    "category": "ALHO_NEGRO",
+    "aliases": ["alho negro alcatra", "pao alho alcatra", "alcatra alho negro"]
+  },
+  {
+    "id": "pan002",
+    "name": "Pão de Alho Negro com Coração e Bacon",
+    "price": 39.9,
+    "category": "ALHO_NEGRO",
+    "aliases": ["alho negro coracao bacon", "pao alho coracao bacon"]
+  },
+  {
+    "id": "pan003",
+    "name": "Pão de Alho Negro com Costela Desfiada",
+    "price": 39.9,
+    "category": "ALHO_NEGRO",
+    "aliases": ["alho negro costela", "pao alho costela"]
+  },
+
+  {
+    "id": "batm001",
+    "name": "Batata Frita M",
+    "price": 15.0,
+    "category": "PORCOES",
+    "aliases": ["batata media", "batata m"]
+  },
+  {
+    "id": "batg001",
+    "name": "Batata Frita G",
+    "price": 22.0,
+    "category": "PORCOES",
+    "aliases": ["batata grande", "batata g"]
+  },
+  {
+    "id": "batbm001",
+    "name": "Batata com Bacon M",
+    "price": 22.0,
+    "category": "PORCOES",
+    "aliases": ["batata bacon media", "batata bacon m"]
+  },
+  {
+    "id": "batbg001",
+    "name": "Batata com Bacon G",
+    "price": 29.0,
+    "category": "PORCOES",
+    "aliases": ["batata bacon grande", "batata bacon g"]
+  },
+
+  {
+    "id": "cer001",
+    "name": "Cerveja Long Neck",
+    "price": 12.0,
+    "category": "BEBIDAS",
+    "aliases": ["long neck", "heineken", "corona"]
+  },
+  {
+    "id": "cer002",
+    "name": "Cerveja Lata",
+    "price": 7.0,
+    "category": "BEBIDAS",
+    "aliases": ["cerveja lata", "lata cerveja"]
+  },
+  {
+    "id": "ref001",
+    "name": "Refrigerante Lata 350ml",
+    "price": 6.0,
+    "category": "BEBIDAS",
+    "aliases": ["refri lata", "coca lata", "guarana lata"]
+  },
+  {
+    "id": "ref002",
+    "name": "Refrigerante 600ml",
+    "price": 9.0,
+    "category": "BEBIDAS",
+    "aliases": ["coca 600", "refri 600"]
+  },
+  {
+    "id": "ref003",
+    "name": "Refrigerante 2L",
+    "price": 18.0,
+    "category": "BEBIDAS",
+    "aliases": ["coca 2l", "refri 2 litros"]
+  },
+  {
+    "id": "agua001",
+    "name": "Água Mineral 500ml",
+    "price": 5.0,
+    "category": "BEBIDAS",
+    "aliases": ["agua", "agua mineral"]
+  }
+]

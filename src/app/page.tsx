@@ -234,21 +234,21 @@ function AuthModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: Use
 
   const handleRegister = () => {
     if (!form.name.trim() || !form.phone.trim() || !form.password.trim()) { setErr("Preencha nome, telefone e senha."); return; }
-    const users: User[] = JSON.parse(localStorage.getItem("adonay_users") || "[]");
+    const users: User[] = JSON.parse(localStorage.getItem("grillcentral_users") || "[]");
     if (users.find((u) => u.phone === form.phone)) { setErr("Telefone já cadastrado. Faça login."); return; }
     const user: User = { name: form.name, phone: form.phone, address: form.address, password: form.password };
     users.push(user);
-    localStorage.setItem("adonay_users", JSON.stringify(users));
-    localStorage.setItem("adonay_current_user", JSON.stringify(user));
+    localStorage.setItem("grillcentral_users", JSON.stringify(users));
+    localStorage.setItem("grillcentral_current_user", JSON.stringify(user));
     onLogin(user); onClose();
   };
 
   const handleLogin = () => {
     if (!form.phone.trim() || !form.password.trim()) { setErr("Informe telefone e senha."); return; }
-    const users: User[] = JSON.parse(localStorage.getItem("adonay_users") || "[]");
+    const users: User[] = JSON.parse(localStorage.getItem("grillcentral_users") || "[]");
     const user = users.find((u) => u.phone === form.phone && u.password === form.password);
     if (!user) { setErr("Telefone ou senha incorretos."); return; }
-    localStorage.setItem("adonay_current_user", JSON.stringify(user));
+    localStorage.setItem("grillcentral_current_user", JSON.stringify(user));
     onLogin(user); onClose();
   };
 
@@ -350,8 +350,8 @@ function CartSidebar({ cart, onUpdate, onRemove, onClear, mobileOpen, onCloseMob
   const count = cart.reduce((s, i) => s + i.qty, 0);
 
   const waMsg = () => {
-    const u: User | null = (() => { try { return JSON.parse(localStorage.getItem("adonay_current_user") || "null"); } catch { return null; } })();
-    let m = "🛒 *Pedido — Adonay Lanches*\n\n";
+    const u: User | null = (() => { try { return JSON.parse(localStorage.getItem("grillcentral_current_user") || "null"); } catch { return null; } })();
+    let m = "🛒 *Pedido — Grill Central*\n\n";
     if (u?.name) m += `👤 *Cliente:* ${u.name}\n`;
     cart.forEach((i) => { m += `• ${i.qty}x ${i.name} — ${fmt(i.price * i.qty)}\n`; if (i.obs) m += `  _(${i.obs})_\n`; });
     m += `\n*Total: ${fmt(total)}*\n\n`;
@@ -363,7 +363,7 @@ function CartSidebar({ cart, onUpdate, onRemove, onClear, mobileOpen, onCloseMob
   const [showQuickModal, setShowQuickModal] = useState(false);
 
   const getQuickUser = () => {
-    try { return JSON.parse(localStorage.getItem("adonay_quick_user") || "null") as QuickUser | null; } catch { return null; }
+    try { return JSON.parse(localStorage.getItem("grillcentral_quick_user") || "null") as QuickUser | null; } catch { return null; }
   };
 
   const doPostAndOpenWA = async (user: QuickUser) => {
@@ -385,7 +385,7 @@ function CartSidebar({ cart, onUpdate, onRemove, onClear, mobileOpen, onCloseMob
       });
       if (!res.ok) throw new Error("api_error");
       const order = await res.json();
-      let m = `🛒 *Pedido #${order.id} — Adonay Lanches*\n\n`;
+      let m = `🛒 *Pedido #${order.id} — Grill Central*\n\n`;
       m += `👤 *Cliente:* ${user.name}\n`;
       m += `📱 *Telefone:* ${user.phone}\n\n`;
       m += `*Itens:*\n`;
@@ -534,12 +534,12 @@ function ListCard({ item, onAdd, onOpen, onQuickOrder, quickOrderingName }: {
 export default function App() {
   const router = useRouter();
   const [period, setPeriod] = useState<PeriodKey>(() => {
-    if (typeof window !== "undefined") return (localStorage.getItem("adonay_period") as PeriodKey) || "tudo";
+    if (typeof window !== "undefined") return (localStorage.getItem("grillcentral_period") as PeriodKey) || "tudo";
     return "tudo";
   });
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>(() => {
-    if (typeof window !== "undefined") { try { return JSON.parse(localStorage.getItem("adonay_cart") || "[]"); } catch { return []; } }
+    if (typeof window !== "undefined") { try { return JSON.parse(localStorage.getItem("grillcentral_cart") || "[]"); } catch { return []; } }
     return [];
   });
   const [modal, setModal] = useState<MenuItem | null>(null);
@@ -548,7 +548,7 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    if (typeof window !== "undefined") { try { return JSON.parse(localStorage.getItem("adonay_current_user") || "null"); } catch { return null; } }
+    if (typeof window !== "undefined") { try { return JSON.parse(localStorage.getItem("grillcentral_current_user") || "null"); } catch { return null; } }
     return null;
   });
   const catNavRef = useRef<HTMLDivElement>(null);
@@ -590,8 +590,8 @@ export default function App() {
       .finally(() => setApiLoading(false));
   }, []);
 
-  useEffect(() => { localStorage.setItem("adonay_cart", JSON.stringify(cart)); }, [cart]);
-  useEffect(() => { localStorage.setItem("adonay_period", period); }, [period]);
+  useEffect(() => { localStorage.setItem("grillcentral_cart", JSON.stringify(cart)); }, [cart]);
+  useEffect(() => { localStorage.setItem("grillcentral_period", period); }, [period]);
 
   // Build menu data: use API data if available, else fallback to hardcoded
   const menuData = useMemo(() => {
@@ -634,7 +634,7 @@ export default function App() {
   const [pendingQuickItem, setPendingQuickItem] = useState<MenuItem | null>(null);
 
   const getQuickUserApp = () => {
-    try { return JSON.parse(localStorage.getItem("adonay_quick_user") || "null") as QuickUser | null; } catch { return null; }
+    try { return JSON.parse(localStorage.getItem("grillcentral_quick_user") || "null") as QuickUser | null; } catch { return null; }
   };
 
   const doItemPost = async (item: MenuItem, user: QuickUser) => {
@@ -657,7 +657,7 @@ export default function App() {
       });
       if (!res.ok) throw new Error("api_error");
       const order = await res.json();
-      let m = `🛒 *Pedido #${order.id} — Adonay Lanches*\n\n`;
+      let m = `🛒 *Pedido #${order.id} — Grill Central*\n\n`;
       m += `👤 *Cliente:* ${user.name}\n`;
       m += `📱 *Telefone:* ${user.phone}\n\n`;
       m += `*Itens:*\n• 1x ${item.name} — ${fmt(itemTotal)}\n`;
@@ -667,7 +667,7 @@ export default function App() {
       if (user.lat && user.lng) m += `📌 *Mapa:* https://maps.google.com/?q=${user.lat},${user.lng}\n`;
       window.open(`https://wa.me/${whatsapp}?text=${encodeURIComponent(m)}`, "_blank");
     } catch {
-      let m = `🛒 *Pedido — Adonay Lanches*\n\n`;
+      let m = `🛒 *Pedido — Grill Central*\n\n`;
       m += `👤 *Cliente:* ${user.name}\n📱 *Telefone:* ${user.phone}\n\n• 1x ${item.name} — ${fmt(itemTotal)}\n`;
       m += `\n✅ *Total: ${fmt(itemTotal)}*\n\n`;
       m += `📍 *Endereço:* ${user.address || "a combinar"}\n`;
@@ -695,7 +695,7 @@ export default function App() {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const enriched: QuickUser = { ...user, lat: pos.coords.latitude, lng: pos.coords.longitude };
-          localStorage.setItem("adonay_quick_user", JSON.stringify(enriched));
+          localStorage.setItem("grillcentral_quick_user", JSON.stringify(enriched));
           proceed(enriched);
         },
         () => proceed(userWithoutGeo),
@@ -729,8 +729,8 @@ export default function App() {
       <div style={{ position: "sticky", top: 0, zIndex: 200, background: "rgba(11,13,18,0.97)", backdropFilter: "blur(18px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         <div style={{ maxWidth: 1120, margin: "0 auto", padding: "0 16px", display: "flex", alignItems: "center", gap: 10, height: 52 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/restaurant-logo.jpeg" alt="Adonay" style={{ width: 34, height: 34, borderRadius: 7, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(201,168,76,0.3)" }} />
-          <span style={{ fontFamily: "'Playfair Display',serif", fontWeight: 700, fontSize: 15, color: "#c9a84c", whiteSpace: "nowrap" }}>Adonay Lanches</span>
+          <img src="/images/restaurant-logo.jpeg" alt="Grill Central" style={{ width: 34, height: 34, borderRadius: 7, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(201,168,76,0.3)" }} />
+          <span style={{ fontFamily: "'Playfair Display',serif", fontWeight: 700, fontSize: 15, color: "#c9a84c", whiteSpace: "nowrap" }}>Grill Central</span>
           <div style={{ flex: 1, maxWidth: 340, display: "flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "0 11px", height: 34 }}>
             <SearchIcon s={13} />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar no cardápio..."
@@ -743,7 +743,7 @@ export default function App() {
                 <span style={{ fontSize: 18 }}>👤</span>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "#c9a84c" }}>Olá, {currentUser.name.split(" ")[0]}</span>
               </div>
-              <button onClick={() => { localStorage.removeItem("adonay_current_user"); setCurrentUser(null); }} style={{ background: "none", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, cursor: "pointer", color: "#9e9a90", fontSize: 11, padding: "5px 10px", fontFamily: "DM Sans,sans-serif" }}>Sair</button>
+              <button onClick={() => { localStorage.removeItem("grillcentral_current_user"); setCurrentUser(null); }} style={{ background: "none", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, cursor: "pointer", color: "#9e9a90", fontSize: 11, padding: "5px 10px", fontFamily: "DM Sans,sans-serif" }}>Sair</button>
             </div>
             : <button onClick={() => setAuthOpen(true)} className="hide-mob" style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 14px", background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.25)", borderRadius: 7, cursor: "pointer", color: "#c9a84c", fontSize: 12, fontWeight: 600, fontFamily: "DM Sans,sans-serif", whiteSpace: "nowrap" }}>
               👤 Entrar / Cadastrar
@@ -767,18 +767,15 @@ export default function App() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/images/restaurant-logo.jpeg" alt="Logo" style={{ width: 100, height: 100, borderRadius: 14, boxShadow: "0 8px 40px rgba(0,0,0,0.6)", flexShrink: 0, objectFit: "cover", border: "3px solid rgb(0,0,0)" }} />
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, fontWeight: 700, color: "#c9a84c", lineHeight: 1.1, marginBottom: 4 }}>Restaurante Lanche Adonay</div>
-            <div style={{ fontSize: 12, color: "#9e9a90", marginBottom: 8 }}>Alimentação & Delivery · Manaus, AM</div>
+            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, fontWeight: 700, color: "#c9a84c", lineHeight: 1.1, marginBottom: 4 }}>Grill Central</div>
+            <div style={{ fontSize: 12, color: "#9e9a90", marginBottom: 8 }}>Sabor das Carnes e Lanches</div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
               <span style={{ background: "rgba(201,168,76,0.1)", color: "#e8a84c", border: "1px solid rgba(201,168,76,0.2)", fontSize: 11, padding: "3px 10px", borderRadius: 20, display: "flex", alignItems: "center", gap: 4 }}>
-                <Clock s={11} /> Restaurante: Seg–Sáb 11h–15h
-              </span>
-              <span style={{ background: "rgba(123,142,232,0.1)", color: "#8f9fe8", border: "1px solid rgba(123,142,232,0.2)", fontSize: 11, padding: "3px 10px", borderRadius: 20, display: "flex", alignItems: "center", gap: 4 }}>
-                <Clock s={11} /> Lanche: 19h–23h (diário)
+                <Clock s={11} /> Terça a Domingo · 18:30–23:30
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 5, color: "#5a5650", fontSize: 11 }}>
-              <MapPin s={11} /> Av. Coronel Cyrillo Neves, nº 41 — Compensa 3
+              <MapPin s={11} /> www.grillcardapio.com.br
             </div>
           </div>
           <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noopener noreferrer" className="hide-mob"
@@ -856,20 +853,19 @@ export default function App() {
       <footer style={{ borderTop: "1px solid rgba(255,255,255,0.05)", padding: "30px 16px", marginTop: 8 }}>
         <div style={{ maxWidth: 1120, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 24 }}>
           <div>
-            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, color: "#c9a84c", marginBottom: 8 }}>Adonay Lanches</div>
-            <div style={{ fontSize: 12, color: "#5a5650", lineHeight: 1.8 }}>Comida de verdade, feita com amor<br />e entregue com carinho até você!</div>
+            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, color: "#c9a84c", marginBottom: 8 }}>Grill Central</div>
+            <div style={{ fontSize: 12, color: "#5a5650", lineHeight: 1.8 }}>Sabor das Carnes e Lanches</div>
           </div>
           <div>
             <div style={{ fontSize: 12, fontWeight: 600, color: "#9e9a90", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Localização</div>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 12, color: "#6b6760", lineHeight: 1.7 }}>
-              <MapPin s={13} /> Av. Coronel Cyrillo Neves, nº 41<br />&nbsp;&nbsp;&nbsp;&nbsp;Compensa 3 — Manaus, AM
+              <MapPin s={13} /> www.grillcardapio.com.br
             </div>
           </div>
           <div>
             <div style={{ fontSize: 12, fontWeight: 600, color: "#9e9a90", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Horários</div>
             <div style={{ fontSize: 12, color: "#6b6760", lineHeight: 1.9 }}>
-              <span style={{ color: "#e8a84c" }}>☀️ Restaurante</span> · Seg–Sáb · 11h–15h<br />
-              <span style={{ color: "#8f9fe8" }}>🌙 Lanche</span> · Todos os dias · 19h–23h
+              <span style={{ color: "#e8a84c" }}>🔥 Grill Central</span> · Terça a Domingo · 18:30–23:30
             </div>
           </div>
           <div>
@@ -881,7 +877,7 @@ export default function App() {
           </div>
         </div>
         <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)", marginTop: 24, paddingTop: 16, textAlign: "center", fontSize: 11, color: "#3a3a3a" }}>
-          © 2025 Restaurante Lanche Adonay · Manaus, AM
+          © 2025 Grill Central · grillcardapio.com.br
         </div>
       </footer>
 

@@ -1,0 +1,839 @@
+{
+  "name": "ViatecFlow_SANITIZADO_TEMPLATE",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "viatec",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "4786f30a-7061-4177-a4fd-b173e6e29996",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        192
+      ],
+      "webhookId": "f0423e4f-af8f-4182-93ae-9d2f04823ec9"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst remoteJid = body?.data?.key?.remoteJid || body?.data?.remoteJid || body?.remoteJid || body?.key?.remoteJid || '';\nconst fromMe = body?.data?.key?.fromMe === true;\nconst isGroup = remoteJid.includes('@g.us');\nconst isNewsletter = remoteJid.includes('@newsletter');\nconst isLid = remoteJid.includes('@lid');\nconst numeroLimpo = remoteJid.replace('@s.whatsapp.net','').replace('@c.us','').replace('@lid','_lid');\nconst msgData = body?.data?.message || {};\nconst messageType = body?.data?.messageType || Object.keys(msgData)[0] || '';\nlet mensagem = '';\nlet localizacao = null;\nif (messageType === 'locationMessage' || msgData.locationMessage) {\n  const loc = msgData.locationMessage || {};\n  mensagem = '__LOCALIZACAO__';\n  localizacao = { lat: loc.degreesLatitude || 0, lng: loc.degreesLongitude || 0, nome: loc.name || '' };\n} else {\n  mensagem = (msgData.conversation || msgData.extendedTextMessage?.text || msgData.imageMessage?.caption || msgData.documentMessage?.caption || '').trim().toLowerCase();\n}\nconst pushName = body?.data?.pushName || body?.data?.verifiedBizName || 'Cliente';\nconst messageId = body?.data?.key?.id || '';\nconst timestamp = body?.data?.messageTimestamp || Date.now();\n\n// === BLOQUEIO DE ATENDIMENTO HUMANO ===\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.memoriaClientes) staticData.memoriaClientes = {};\nconst memoria = staticData.memoriaClientes;\nconst INATIVIDADE_30MIN = 30 * 60 * 1000;\nconst PALAVRAS_RESET_BOT = ['menu', 'bot', 'atendimento automatico', 'atendimento automático', 'opções', 'opcoes'];\n\nif (fromMe && remoteJid) {\n  if (!memoria[remoteJid]) {\n    memoria[remoteJid] = { estado: 'inicio', ultima_intencao: null, etapa: 'nova_conversa', ultima_interacao: Date.now() };\n  }\n  memoria[remoteJid].atendimentoHumano = true;\n  memoria[remoteJid].ultimaInteracaoHumana = Date.now();\n}\n\nlet bloqueadoPorHumano = false;\nif (!fromMe && memoria[remoteJid]?.atendimentoHumano === true) {\n  const pedindoBot = PALAVRAS_RESET_BOT.includes(mensagem);\n  const inativo = Date.now() - (memoria[remoteJid].ultimaInteracaoHumana || 0) > INATIVIDADE_30MIN;\n  if (pedindoBot || inativo) {\n    memoria[remoteJid].atendimentoHumano = false;\n  } else {\n    memoria[remoteJid].ultimaInteracaoHumana = Date.now();\n    bloqueadoPorHumano = true;\n  }\n}\n// === FIM BLOQUEIO ===\n\nconst podeResponder = !fromMe && !isGroup && !isNewsletter && remoteJid !== '' && !bloqueadoPorHumano;\nreturn [{ json: { remoteJid, numeroLimpo, mensagem, mensagemOriginal: mensagem, localizacao, messageType, pushName, messageId, timestamp, fromMe, isGroup, isLid, podeResponder, bloqueadoPorHumano, _raw: body } }];"
+      },
+      "id": "8cee3e9d-53e4-40b2-9957-d78f6e5fb7d1",
+      "name": "Normalizar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -656,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-pode-responder",
+              "leftValue": "={{ $json.podeResponder }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "98dcd9d0-80b5-4351-9d91-61faf36a51eb",
+      "name": "Pode Responder?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $input.first().json;\nconst remoteJid = dados.remoteJid;\nconst mensagem = dados.mensagem;\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.sessoes) staticData.sessoes = {};\nconst agora = Date.now();\nconst TIMEOUT = 30 * 60 * 1000;\nfor (const jid in staticData.sessoes) {\n  if (agora - (staticData.sessoes[jid].ultimaAtividade || 0) > TIMEOUT) delete staticData.sessoes[jid];\n}\nlet sessao = staticData.sessoes[remoteJid];\nif (!sessao) {\n  sessao = { estado: 'inicio', ultimaAtividade: agora, nome: dados.pushName };\n  staticData.sessoes[remoteJid] = sessao;\n}\nsessao.ultimaAtividade = agora;\nconst reset = ['menu', 'inicio', 'oi', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'reiniciar'];\nif (reset.includes(mensagem)) sessao.estado = 'inicio';\nconst estadoAtual = sessao.estado;\nconst temHistorico = Array.isArray(sessao.historico) && sessao.historico.length > 0;\nconst rota = (estadoAtual === 'inicio' && !temHistorico) ? 'menu_principal' : 'processador';\nreturn [{ json: { ...dados, estadoAtual, rota, sessao } }];"
+      },
+      "id": "139378b8-ccc0-4d22-92c5-04db32fb1b46",
+      "name": "Motor de Estado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.rota }}",
+                    "rightValue": "menu_principal",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "92065663-731d-47a3-b0c0-28f6b2ef7b18"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "menu_principal"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.rota }}",
+                    "rightValue": "processador",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "a5dc7323-bea9-46ab-9e1e-c86e7173d7f0"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "processador"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8a705893-24c5-4c23-814a-1f13a5fdb1eb",
+      "name": "Roteador",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        16,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $input.first().json;\nconst nome = dados.pushName || 'Cliente';\nconst staticData = $getWorkflowStaticData('global');\nconst sessao = staticData.sessoes[dados.remoteJid];\nsessao.estado = 'aguardando';\nconst texto = \"Ola, \" + nome + \"! \\nBem-vindo a *VIATEC INFORMATICA*! \\n\\nSou o atendente virtual. Pode perguntar a vontade:\\n\\n Localizacao e como chegar\\n Horario de atendimento\\n Ponto Shopee (envio, devolucao, retirada)\\n Servicos e orcamentos\\n\\nOu se preferir, digite *atendente* para falar com alguem.\";\nreturn [{ json: { ...dados, textoResposta: texto } }];"
+      },
+      "id": "27d9f463-9b0f-4f36-8055-321e98d746a5",
+      "name": "Menu Principal",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $input.first().json;\nconst msg = (dados.mensagem || '').trim().toLowerCase();\nconst msgOrig = dados.mensagemOriginal || msg;\nconst nome = dados.pushName || 'Cliente';\nconst staticData = $getWorkflowStaticData('global');\nconst sessao = staticData.sessoes[dados.remoteJid];\nconst hBR = new Date(Date.now() - 3 * 60 * 60 * 1000);\nconst hora = hBR.getHours();\n\n// === MEMÓRIA POR CLIENTE ===\nif (!staticData.memoriaClientes) staticData.memoriaClientes = {};\nconst memoria = staticData.memoriaClientes;\nconst numero = dados.remoteJid;\nconst RESET_2H = 2 * 60 * 60 * 1000;\n\nif (!memoria[numero] || (Date.now() - (memoria[numero].ultima_interacao || 0) > RESET_2H)) {\n  memoria[numero] = {\n    estado: 'inicio',\n    ultima_intencao: null,\n    etapa: 'nova_conversa',\n    ultima_interacao: Date.now()\n  };\n}\nconst cliente = memoria[numero];\ncliente.ultima_interacao = Date.now();\n// === FIM MEMÓRIA ===\n\n// ENCERRAMENTO\nif (/obrigad|tchau|valeu|até logo|flw|até mais|xau/.test(msg)) {\n  const despedidas = [\n    'Fico feliz em ajudar! Qualquer dúvida, é só chamar. 😊',\n    'Disponha! Se precisar de mais alguma coisa, estamos aqui. 👍',\n    'Foi um prazer! Volte sempre que precisar. 😊'\n  ];\n  if (sessao) { sessao.historico = []; sessao.estado = 'inicio'; }\n  memoria[numero] = { estado: 'inicio', ultima_intencao: null, etapa: 'nova_conversa', ultima_interacao: Date.now() };\n  return [{ json: { ...dados, textoResposta: despedidas[Math.floor(Math.random() * despedidas.length)], chamarLLM: false } }];\n}\n\n// LOCALIZAÇÃO\nif (/onde fica|endereço|localiza|como cheg|mapa|rua|bairro/.test(msg)) {\n  cliente.estado = 'info'; cliente.ultima_intencao = 'localizacao'; cliente.etapa = 'respondido';\n  return [{ json: { ...dados, textoResposta: `📍 Estamos na Av. 25 de Julho, 2537 - Sala 05, Centro - Forquilhinha/SC\\n\\n🗺️ Em frente à Maria Cafeteira\\n\\nhttps://maps.google.com/?q=Av.+25+de+Julho,+2537+Forquilhinha+SC`, chamarLLM: false } }];\n}\n\n// SHOPEE\nif (/shopee|ponto shop|envio|devoluc|retirad|mercadoria|entrega|c[oó]dig/.test(msg)) {\n  cliente.estado = 'shopee'; cliente.ultima_intencao = 'logistica'; cliente.etapa = 'aguardando_acao';\n  return [{ json: { ...dados, textoResposta: `Sim, somos ponto Shopee 👍\\nPode trazer a mercadoria com o código que recebeu no celular.\\nA gente faz envio, devolução e retirada aqui na loja.\\nQuer passar agora ou mais tarde?`, chamarLLM: false } }];\n}\n\n// HORÁRIO\nif (/horário|hora|aberto|fechado|funcionamento|quando abre|quando fecha/.test(msg)) {\n  cliente.estado = 'info'; cliente.ultima_intencao = 'horario'; cliente.etapa = 'respondido';\n  const aberto = hora >= 8 && hora < 12 || hora >= 13 && hora < 18;\n  const diaSemana = hBR.getDay();\n  const domingo = diaSemana === 0;\n  const status = domingo ? '🔴 Hoje é domingo, estamos fechados.' : aberto ? '🟢 Estamos abertos agora!' : '🔴 Estamos fechados no momento.';\n  return [{ json: { ...dados, textoResposta: `${status}\\n\\n⏰ Horário: Seg a Sáb\\n• Manhã: 08:30 às 12:00\\n• Tarde: 13:30 às 18:00`, chamarLLM: false } }];\n}\n\n// ATENDENTE HUMANO\nif (/atendente|humano|pessoa|gerente|falar com algu/.test(msg)) {\n  cliente.estado = 'humano'; cliente.ultima_intencao = 'atendimento'; cliente.etapa = 'aguardando_acao';\n  if (sessao) sessao.estado = 'humano';\n  return [{ json: { ...dados, textoResposta: `👤 Certo! Vou te conectar com um atendente.\\n\\nAguarde um momento ou ligue: 📞 (48) 99971-2206`, chamarLLM: false } }];\n}\n\n// CONTATO\nif (/telefone|ligar|número|contato|whatsapp/.test(msg)) {\n  cliente.estado = 'info'; cliente.ultima_intencao = 'contato'; cliente.etapa = 'respondido';\n  return [{ json: { ...dados, textoResposta: `📞 Nosso telefone: (48) 99971-2206\\n\\nVocê também pode ligar ou mandar mensagem diretamente por aqui!`, chamarLLM: false } }];\n}\n\n// === USO DA MEMÓRIA: contexto Shopee sem gatilho explícito ===\nif (cliente.estado === 'shopee' && cliente.etapa === 'aguardando_acao') {\n  cliente.etapa = 'follow_up';\n  return [{ json: { ...dados, textoResposta: `Pode trazer sim! Aceitamos envio, devolução e retirada aqui na loja 👍\\nQuer passar agora ou mais tarde?`, chamarLLM: false } }];\n}\n\n// LLM — prepara payload e passa para HTTP Request\ncliente.estado = 'tecnico'; cliente.ultima_intencao = 'diagnostico'; cliente.etapa = 'avaliando';\nif (!sessao.historico) sessao.historico = [];\nsessao.historico.push({ role: 'user', content: msgOrig });\nif (sessao.historico.length > 16) sessao.historico = sessao.historico.slice(-16);\n\nconst systemPrompt = `Você é o atendente da VIATEC INFORMATICA, em Forquilhinha/SC. Fala de forma natural, direta e humana — como alguém que entende do assunto e quer ajudar de verdade, não um robô.\n\nREGRA DE OURO: nunca responda de forma genérica. Sempre:\n1. Reconheça o problema específico que o cliente descreveu\n2. Dê uma possível causa simples, sem afirmar com certeza (\"geralmente acontece quando...\", \"pode ser que...\")\n3. Ofereça um caminho: orientação rápida agora OU convite para trazer na loja\n4. Finalize direcionando para uma ação concreta\n\nTOM: natural, próximo, sem termos técnicos desnecessários. Máximo 3 parágrafos curtos.\n\nSOBRE PREÇOS: nunca invente valor. Diga que depende da avaliação e convide para trazer o aparelho.\n\nATENDE: iPhone, Samsung, Motorola, Xiaomi, Realme, notebooks, computadores, tablets, Xbox Series S e X, Ponto Shopee.\nNÃO ATENDE: TVs, PlayStation, Xbox 360/One, eletrodomésticos.\n\nEndereço: Av. 25 de Julho, 2537 - Sala 05, Centro - Forquilhinha/SC (em frente à Maria Cafeteira)\nTelefone: (48) 99971-2206\nHorário: Seg a Sáb, 08:30–12:00 e 13:30–18:00\n\nLINGUAGEM OBRIGATÓRIA:\n- Nunca afirme um diagnóstico com certeza. Use: \"geralmente\", \"pode ser\", \"em muitos casos\", \"costuma acontecer quando\", \"é possível que\".\n- Evite palavras que assustam: nunca diga \"placa queimada\", \"perda total\", \"sem conserto\", \"danificado permanentemente\". Prefira: \"algum componente que precisamos avaliar\", \"a gente precisa ver com calma\", \"depende da avaliação\".\n- Varie a estrutura. Alterne entre: causa primeiro, pergunta primeiro, solução direta — para soar natural.\n\nTAMANHO — REGRA CRÍTICA:\n- Máximo 2 frases por resposta. Cada frase curta.\n- Nunca escreva mais que 3 linhas. Sem explicações longas.\n- Sem listas, sem tópicos, sem formatação — texto corrido.\n\nFORMATO OBRIGATÓRIO:\n1. 1 frase: tranquiliza ou responde direto\n2. 1 frase: puxa ação simples (trazer na loja, ligar, ou 1 pergunta curta)\nNunca só explique. Nunca peça testes técnicos.\n\nREGRA COMERCIAL:\n- Nunca peça testes técnicos difíceis ao cliente.\n- Evite instruções complexas — seu objetivo é facilitar, não ensinar.\n- Priorize sempre trazer o cliente até a loja.\n- Se não souber o problema exato, faça 1 pergunta simples ou convide a trazer.\n\nEXEMPLOS DE RESPOSTAS IDEAIS:\nCliente: \"não dá vídeo\"\n→ Isso pode ser algo simples, mas precisa verificar. Se quiser, traz aqui que a gente já testa na hora 👍\n\nCliente: \"tá estranho\"\n→ Pode ser alguma coisa começando a dar problema. O que exatamente ele está fazendo de diferente?\n\nCliente: \"quanto custa\"\n→ Depende do que for, só vendo mesmo. Se quiser, traz aqui que te passo o valor certinho 👍\n\nEMPATIA:\n- Use empatia no máximo 1 vez por conversa. Não repita \"entendo\", \"que chato\", \"frustrante\" a cada mensagem.\n- Na maioria das respostas, vá direto ao ponto sem abertura empática.\n\nRESPOSTA:\n- Se precisar de mais informação, faça no máximo 1 pergunta objetiva.\n- Sempre finalize com uma ação simples: trazer na loja, ligar, ou responder aqui.\n\nVARIAÇÃO CONTROLADA (OBRIGATÓRIO):\n- Nunca inicie duas respostas seguidas da mesma forma.\n- Alterne obrigatoriamente entre 3 modos de abertura:\n  1) Direto na causa: \"Isso costuma acontecer quando...\", \"No [modelo] isso aparece bastante...\", \"Pode ser algo na parte de...\"\n  2) Empatia curta (máx 1x por conversa): \"Entendi, isso é bem comum...\", \"Faz sentido, o [modelo] tem esse comportamento...\"\n  3) Pergunta primeiro: \"Ele liga normal ou dá algum sinal diferente?\", \"Isso acontece sempre ou só às vezes?\", \"Caiu ou molhou antes disso?\"\n- Nunca repetir o mesmo modo de abertura em duas mensagens consecutivas.\n\nVARIAÇÃO DE CONTEÚDO (OBRIGATÓRIO):\n- Nunca repetir a mesma justificativa em respostas seguidas.\n- Alterne entre: causa possível → convite para avaliação → pergunta simples → benefício.\n- Evite repetir: \"precisa avaliar\", \"traz na loja\", \"depende da avaliação\".\n- Use variações naturais:\n  \"a gente confirma rapidinho aqui\"\n  \"dá pra ver isso na hora\"\n  \"é coisa simples de identificar\"\n  \"já dá pra ter uma ideia melhor vendo de perto\"\n  \"a gente bate o olho e já sabe\"\n  \"aqui a gente identifica rápido\"\n\nREGRA DE EQUILÍBRIO:\n- Nem toda resposta deve convidar para trazer na loja.\n- A cada 2 respostas: 1 pode convidar → 1 deve apenas perguntar ou orientar.\n- Evite parecer insistente. Se já convidou na mensagem anterior, na próxima faça uma pergunta ou oriente sem repetir o convite.\n- Exemplos de resposta sem convite: \"Isso acontece sempre ou só às vezes?\", \"Caiu ou pegou água em algum momento?\", \"Tá dando alguma mensagem de erro na tela?\"\n\nREGRA DE FECHAMENTO (CRÍTICA):\n- Quando o cliente demonstrar intenção — informar modelo, perguntar preço, perguntar quando pode ir, dizer que quer resolver — pare de explicar. Vá direto ao fechamento.\n- Formato obrigatório: 1) confirmação simples + 2) ação direta com escolha de horário.\n- Nunca continue explicando depois que o cliente já sinalizou intenção.\n- Exemplos de fechamento:\n  \"Pra esse modelo a gente resolve rápido 👍 Pode passar hoje ou prefere amanhã?\"\n  \"Isso a gente já vê na hora 👍 Quer passar aqui agora ou mais tarde?\"\n  \"Consegue vir hoje ou quer deixar pra amanhã?\"\n  \"Pode trazer que a gente já te atende na hora 👍 Hoje ou amanhã fica melhor?\"\n\nPERGUNTAS DE DECISÃO:\n- Sempre use perguntas de escolha, nunca perguntas abertas demais.\n- Formatos preferidos: \"hoje ou amanhã?\", \"manhã ou tarde?\", \"quer passar agora ou depois?\", \"hoje à tarde ou amanhã cedo?\"\n- Evite: \"quando você pode vir?\", \"qual seria um bom horário pra você?\"\n\nREGRA DE CONVERSÃO:\n- Reduza sempre o atrito para o cliente vir até a loja.\n- Use frases que facilitam a decisão: \"é rápido\", \"a gente vê na hora\", \"sem compromisso\", \"bem tranquilo\".\n- Evite convites genéricos como \"pode trazer\".\n- Prefira: \"pode trazer que a gente já vê na hora pra você\" / \"é rápido de verificar\" / \"a gente olha aí na hora pra você\".\n\nREGRA DE NATURALIDADE:\n- Varie os finais de frase. Nunca repita sempre \"se quiser, traz aqui\".\n- Alterne entre: \"a gente já vê na hora 👍\", \"é rápido de verificar aqui\", \"pode vir sem compromisso\", \"a gente olha na hora pra você\", \"me fala mais como tá o problema\".\n\nREGRA DE ENGAJAMENTO:\n- Sempre que possível, termine com uma pergunta simples que puxa decisão ou mais informação.\n- Evite respostas que encerram a conversa. O objetivo é fazer o cliente responder.\n- Nunca finalize seco sem abrir espaço para resposta.\n- Exemplos de perguntas que convertem: \"Consegue passar hoje ou prefere amanhã?\", \"Ele chegou a desligar sozinho?\", \"Faz tempo que começou isso?\", \"É notebook ou desktop?\", \"Está carregando normal pelo menos?\"\n\nESTRUTURA FINAL IDEAL (3 frases máximo):\n1. Causa possível ou tranquilização (1 frase)\n2. Convite com redução de atrito (1 frase)\n3. Pergunta que puxa decisão ou detalhe (1 frase)\n\nREGRA DE ETAPA DO CLIENTE:\n- Se o cliente informar o modelo do aparelho (ex: iPhone 13, Samsung A54, Notebook Dell): pare de explicar causas. Avance direto para fechamento leve.\n- Nesse caso: valide que é comum/normal ver isso, diga que resolve rápido, faça pergunta de decisão: \"Consegue passar hoje ou prefere amanhã?\"\n- Nunca volte para respostas genéricas depois que o cliente deu detalhes. Quanto mais detalhe ele der, mais específico e próximo do fechamento deve ser o retorno.\n\nREGRA DE ESPECIFICIDADE SEGURA:\n- Sempre use o modelo citado pelo cliente na resposta. Nunca diga \"nesse modelo\" sem nomear.\n- Pode mencionar a área do problema (carga, tela, sistema, bateria) — nunca a causa exata.\n- Mantenha sempre incerteza controlada: \"costuma ser\", \"pode ser\", \"precisa confirmar\".\n- Nunca dê diagnóstico fechado sem ver o aparelho. Você NÃO está diagnosticando — está conduzindo.\n\nEXEMPLOS:\nCliente: \"iPhone 14 não carrega\"\n→ No iPhone 14 isso costuma ser algo na parte de carga 👍 Mas precisa ver certinho. Consegue passar hoje ou prefere amanhã?\n\nCliente: \"Samsung A32 tela quebrou\"\n→ No A32 isso é bem tranquilo de resolver 👍 A gente vê na hora pra você. Consegue passar hoje ou amanhã?\n\nCliente: \"notebook Dell não liga\"\n→ No Dell isso pode ser na parte de energia, mas precisa confirmar aqui. A gente olha na hora pra você 👍 Consegue trazer hoje?`;\n\nreturn [{\n  json: {\n    ...dados,\n    chamarLLM: true,\n    llmPayload: {\n      model: 'gpt-4o-mini',\n      max_tokens: 300,\n      temperature: 0.5,\n      messages: [\n        { role: 'system', content: systemPrompt },\n        ...sessao.historico\n      ]\n    }\n  }\n}];"
+      },
+      "id": "7f5e7b02-6af6-4227-9249-f9deafd0bfdb",
+      "name": "Processador IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://evolution-api:8080/message/sendText/{{EVOLUTION_INSTANCE}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "{{EVOLUTION_API_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $json.numeroLimpo }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.textoResposta }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "36727e5a-01a6-4aef-8aea-2961e2159cf9",
+      "name": "Enviar Resposta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        496,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "OK",
+        "options": {}
+      },
+      "id": "d52d78b7-e2a1-4cb6-b2e0-0e2bae9610c0",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        704,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond1",
+              "leftValue": "={{ $json.messageType }}",
+              "rightValue": "audioMessage",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "audio-detect-01",
+      "name": "Detectar Áudio",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        560,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $input.first().json;\nconst erro = dados.audioErro;\n\nlet msg = 'Não consegui entender o áudio. Pode enviar em texto?';\nif (erro === 'longo') msg = 'Para agilizar, pode enviar em texto 🙂';\n\nawait this.helpers.httpRequest({\n  method: 'POST',\n  url: 'http://evolution-api:8080/message/sendText/{{EVOLUTION_INSTANCE}}',\n  headers: {\n    'Content-Type': 'application/json',\n    'apikey': '{{EVOLUTION_API_KEY}}'\n  },\n  body: { number: dados.numeroLimpo, text: msg },\n  json: true\n});\n\nreturn [{ json: { ...dados, textoResposta: msg } }];"
+      },
+      "id": "audio-error-01",
+      "name": "Enviar Erro Áudio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $input.first().json;\nconst rawMsg = dados._raw?.data?.message || {};\nconst audioMsg = rawMsg.audioMessage;\n\nif (!audioMsg) {\n  return [{ json: { ...dados, audioOk: false, audioErro: 'sem_midia' } }];\n}\n\nfunction toBase64(obj) {\n  if (!obj) return obj;\n  if (typeof obj === 'object') {\n    const values = Object.values(obj);\n    if (values.length > 0 && typeof values[0] === 'number') {\n      return Buffer.from(values).toString('base64');\n    }\n  }\n  return obj;\n}\n\nconst audioConvertido = {\n  ...audioMsg,\n  mediaKey: toBase64(audioMsg.mediaKey),\n  fileSha256: toBase64(audioMsg.fileSha256),\n  fileEncSha256: toBase64(audioMsg.fileEncSha256),\n  streamingSidecar: toBase64(audioMsg.streamingSidecar)\n};\n\nreturn [{ json: { ...dados, audioConvertido: audioConvertido, keyAudio: dados._raw?.data?.key } }];"
+      },
+      "id": "node-preparar-audio",
+      "name": "Preparar Dados do Áudio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution-api:8080/chat/getBase64FromMediaMessage/{{EVOLUTION_INSTANCE}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "{{EVOLUTION_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: { key: $json.keyAudio, message: { audioMessage: $json.audioConvertido } }, convertToMp4: false }) }}",
+        "options": {}
+      },
+      "id": "node-baixar-audio",
+      "name": "Baixar Áudio (Evolution)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1024,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.base64 }}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "id": "node-verificar-download",
+      "name": "Download OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/audio/transcriptions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{OPENAI_API_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "whisper-1"
+            },
+            {
+              "name": "language",
+              "value": "pt"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "file"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-transcrever-whisper",
+      "name": "Transcrever (Whisper)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1472,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $input.first().json;\nlet texto = dados.text || '';\ntexto = texto.replace(/\\b(é+|ah+|hã+|hum+|tipo assim|tipo|né)\\b/gi,'').replace(/\\s+/g,' ').trim();\nreturn [{ json: { ...dados, audioOk: true, mensagem: texto, mensagemOriginal: texto } }];"
+      },
+      "id": "node-limpar-texto",
+      "name": "Limpar Texto Final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-chama-llm",
+              "leftValue": "={{ $json.chamarLLM }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "verif-llm-001",
+      "name": "Verificar chamarLLM",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        384,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{OPENAI_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.llmPayload) }}",
+        "options": {}
+      },
+      "id": "openai-teste-001",
+      "name": "OpenAI_TESTE",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        592,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const openaiResp = $input.first().json;\nconst dadosOriginais = $('Processador IA').first().json;\n\nlet respostaFinal = \"Tive um problema técnico ao analisar. Pode repetir de outra forma?\";\n\nif (openaiResp && openaiResp.choices && openaiResp.choices[0]?.message?.content) {\n  respostaFinal = openaiResp.choices[0].message.content;\n}\n\nreturn [{\n  json: {\n    ...dadosOriginais,\n    textoResposta: respostaFinal\n  }\n}];"
+      },
+      "id": "extrair-oai-001",
+      "name": "Extrair_OpenAI",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        784,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $input.first().json;\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.metricas_atendimento) staticData.metricas_atendimento = [];\n\nconst agora = Date.now();\nconst duasHoras = 2 * 60 * 60 * 1000;\nconst numero = dados.remoteJid || '';\n\nconst registroRecente = staticData.metricas_atendimento.find(\n  r => r.numero === numero && r.etapa === 'inicio' && (agora - r.data) < duasHoras\n);\n\nif (!registroRecente && numero) {\n  staticData.metricas_atendimento.push({ numero, etapa: 'inicio', data: agora });\n  if (staticData.metricas_atendimento.length > 1000)\n    staticData.metricas_atendimento = staticData.metricas_atendimento.slice(-1000);\n}\n\nreturn [$input.first()];"
+      },
+      "id": "metric-ini-001",
+      "name": "Registrar_Inicio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-visita",
+              "leftValue": "={{ $json.mensagem }}",
+              "rightValue": "vou|passo|indo|amanhã|amanha|mais tarde",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "metric-dtv-001",
+      "name": "Detectar_Visita",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $input.first().json;\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.metricas_atendimento) staticData.metricas_atendimento = [];\n\nconst numero = dados.remoteJid || '';\nconst agora  = Date.now();\nconst umaHora = 60 * 60 * 1000;\n\nconst jaRegistrado = staticData.metricas_atendimento.some(\n  r => r.numero === numero && r.etapa === 'interesse_visita' && (agora - r.data) < umaHora\n);\n\nif (!jaRegistrado && numero)\n  staticData.metricas_atendimento.push({ numero, etapa: 'interesse_visita', data: agora });\n\nreturn [$input.first()];"
+      },
+      "id": "metric-vis-001",
+      "name": "Registrar_Visita",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $input.first().json;\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.metricas_atendimento) staticData.metricas_atendimento = [];\n\nconst numero = dados.remoteJid || '';\nconst agora = Date.now();\n\nconst temInicio   = staticData.metricas_atendimento.some(r => r.numero === numero && r.etapa === 'inicio');\nconst jaRespondeu = staticData.metricas_atendimento.some(r => r.numero === numero && r.etapa === 'respondeu');\n\nif (temInicio && !jaRespondeu && numero)\n  staticData.metricas_atendimento.push({ numero, etapa: 'respondeu', data: agora });\n\nreturn [$input.first()];"
+      },
+      "id": "metric-res-001",
+      "name": "Registrar_Resposta_Cliente",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $input.first().json;\nconst staticData = $getWorkflowStaticData('global');\n\nif (!staticData.logsAtendimento) staticData.logsAtendimento = [];\nconst logs = staticData.logsAtendimento;\n\nconst numero    = dados.remoteJid || '';\nconst mensagem  = (dados.mensagemOriginal || dados.mensagem || '').substring(0, 200);\nconst resposta  = (dados.textoResposta || '').substring(0, 300);\nconst chamarLLM = dados.chamarLLM === true;\nconst mem       = (staticData.memoriaClientes || {})[numero] || {};\nconst estado    = mem.estado || (chamarLLM ? 'tecnico' : 'fixo');\nconst agora     = Date.now();\n\nconst ultimoLog = [...logs].reverse().find(l => l.numero === numero);\nconst deltaMs   = ultimoLog ? agora - ultimoLog.timestamp : null;\n\nlogs.push({\n  numero,\n  mensagemCliente: mensagem,\n  respostaBot:     resposta,\n  estado,\n  chamarLLM,\n  deltaSegundos:   deltaMs !== null ? Math.round(deltaMs / 1000) : null,\n  timestamp:       agora\n});\n\nif (logs.length > 500) staticData.logsAtendimento = logs.slice(-500);\n\n// Resumo recalculado\nconst all     = staticData.logsAtendimento;\nconst total   = all.length;\nconst comIA   = all.filter(l => l.chamarLLM).length;\nconst semIA   = total - comIA;\nconst deltas  = all.map(l => l.deltaSegundos).filter(d => d !== null && d < 3600);\nconst dMedia  = deltas.length ? Math.round(deltas.reduce((a,b)=>a+b,0)/deltas.length) : null;\nconst interVi = all.filter(l => l.estado === 'info').length;\n\nstaticData.resumoLogs = {\n  totalInteracoes:        total,\n  pctRespostasIA:         total ? +(comIA/total*100).toFixed(1) : 0,\n  pctRespostasFixas:      total ? +(semIA/total*100).toFixed(1) : 0,\n  pctInteresseVisita:     total ? +(interVi/total*100).toFixed(1) : 0,\n  tempoMedioEntreMsg_seg: dMedia,\n  atualizadoEm:           agora\n};\n\n// Pass-through: repassa dados originais para Enviar Resposta\nreturn [{ json: dados }];"
+      },
+      "id": "registrar-log-001",
+      "name": "Registrar_Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        384
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar": {
+      "main": [
+        [
+          {
+            "node": "Registrar_Inicio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pode Responder?": {
+      "main": [
+        [
+          {
+            "node": "Motor de Estado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Motor de Estado": {
+      "main": [
+        [
+          {
+            "node": "Roteador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Roteador": {
+      "main": [
+        [
+          {
+            "node": "Menu Principal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Processador IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Menu Principal": {
+      "main": [
+        [
+          {
+            "node": "Registrar_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processador IA": {
+      "main": [
+        [
+          {
+            "node": "Registrar_Resposta_Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Resposta": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Áudio": {
+      "main": [
+        [
+          {
+            "node": "Preparar Dados do Áudio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pode Responder?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Dados do Áudio": {
+      "main": [
+        [
+          {
+            "node": "Baixar Áudio (Evolution)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar Áudio (Evolution)": {
+      "main": [
+        [
+          {
+            "node": "Download OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download OK?": {
+      "main": [
+        [
+          {
+            "node": "Transcrever (Whisper)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Erro Áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcrever (Whisper)": {
+      "main": [
+        [
+          {
+            "node": "Limpar Texto Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpar Texto Final": {
+      "main": [
+        [
+          {
+            "node": "Pode Responder?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar chamarLLM": {
+      "main": [
+        [
+          {
+            "node": "OpenAI_TESTE",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI_TESTE": {
+      "main": [
+        [
+          {
+            "node": "Extrair_OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair_OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Registrar_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar_Inicio": {
+      "main": [
+        [
+          {
+            "node": "Detectar Áudio",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Detectar_Visita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar_Visita": {
+      "main": [
+        [
+          {
+            "node": "Registrar_Visita",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Registrar_Resposta_Cliente": {
+      "main": [
+        [
+          {
+            "node": "Verificar chamarLLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar_Log": {
+      "main": [
+        [
+          {
+            "node": "Enviar Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "d08f9dfd-a81f-4a2e-8e70-e5c61754890a",
+  "meta": {
+    "instanceId": "c9dff6db832674f2ea58a6147f22feaf75b575ccf5b41067a27c5c0b1891031d"
+  },
+  "id": "LiUyEvwSOLTbFCRK",
+  "tags": []
+}

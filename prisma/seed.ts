@@ -48,12 +48,12 @@ async function main() {
   // Create restaurant
   const restaurant = await prisma.restaurant.create({
     data: {
-      slug: "adonay",
-      name: "Adonay Lanches",
-      description: "O melhor da culinária local, servido com carinho.",
-      phone: "(92) 98621-0138",
+      slug: "grillcentral",
+      name: "Grill Central",
+      description: "Sabor das Carnes e Lanches",
+      phone: "(48) 98836-2576",
       whatsapp: WHATSAPP_NUMBER,
-      address: "Manaus, AM",
+      address: "www.grillcardapio.com.br",
       isActive: true,
     },
   });

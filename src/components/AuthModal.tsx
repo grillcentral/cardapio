@@ -28,7 +28,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
       setError("Preencha todos os campos.");
       return;
     }
-    const users = JSON.parse(localStorage.getItem("adonay_users") || "[]");
+    const users = JSON.parse(localStorage.getItem("grillcentral_users") || "[]");
     const user = users.find(
       (u: { email: string; password: string }) =>
         u.email === loginData.email && u.password === loginData.password
@@ -37,7 +37,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
       setError("E-mail ou senha incorretos.");
       return;
     }
-    localStorage.setItem("adonay_current_user", JSON.stringify(user));
+    localStorage.setItem("grillcentral_current_user", JSON.stringify(user));
     window.dispatchEvent(new Event("userChanged"));
     onClose();
   }
@@ -58,15 +58,15 @@ export default function AuthModal({ onClose }: AuthModalProps) {
       setError("A senha deve ter pelo menos 6 caracteres.");
       return;
     }
-    const users = JSON.parse(localStorage.getItem("adonay_users") || "[]");
+    const users = JSON.parse(localStorage.getItem("grillcentral_users") || "[]");
     if (users.find((u: { email: string }) => u.email === email)) {
       setError("Este e-mail já está cadastrado.");
       return;
     }
     const newUser = { name, email, phone, password };
     users.push(newUser);
-    localStorage.setItem("adonay_users", JSON.stringify(users));
-    localStorage.setItem("adonay_current_user", JSON.stringify(newUser));
+    localStorage.setItem("grillcentral_users", JSON.stringify(users));
+    localStorage.setItem("grillcentral_current_user", JSON.stringify(newUser));
     window.dispatchEvent(new Event("userChanged"));
     setSuccess("Cadastro realizado com sucesso!");
     setTimeout(() => onClose(), 1200);

@@ -10,7 +10,7 @@ export default function RestaurantInfo() {
 
   useEffect(() => {
     function loadUser() {
-      const stored = localStorage.getItem("adonay_current_user");
+      const stored = localStorage.getItem("grillcentral_current_user");
       setCurrentUser(stored ? JSON.parse(stored) : null);
     }
     loadUser();
@@ -26,7 +26,7 @@ export default function RestaurantInfo() {
   }, []);
 
   function handleLogout() {
-    localStorage.removeItem("adonay_current_user");
+    localStorage.removeItem("grillcentral_current_user");
     setCurrentUser(null);
   }
 

@@ -109,7 +109,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }}>🍔</div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#c9a84c", lineHeight: 1.2 }}>
-                {user.restaurant?.name || "Adonay Lanches"}
+                {user.restaurant?.name || "Grill Central"}
               </div>
               <div style={{ fontSize: 10, color: "#5a5650" }}>Painel Admin</div>
             </div>

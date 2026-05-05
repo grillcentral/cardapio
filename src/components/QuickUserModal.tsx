@@ -51,7 +51,7 @@ export default function QuickUserModal({ onConfirm, onClose }: Props) {
   useEffect(() => {
     try {
       const saved = JSON.parse(
-        localStorage.getItem("adonay_quick_user") || "null"
+        localStorage.getItem("grillcentral_quick_user") || "null"
       ) as QuickUser | null;
       if (saved?.name)       setName(saved.name);
       if (saved?.phone)      setPhone(fmtPhone(saved.phone));
@@ -112,7 +112,7 @@ export default function QuickUserModal({ onConfirm, onClose }: Props) {
       lat,
       lng,
     };
-    localStorage.setItem("adonay_quick_user", JSON.stringify(user));
+    localStorage.setItem("grillcentral_quick_user", JSON.stringify(user));
     onConfirm(user);
   };
 

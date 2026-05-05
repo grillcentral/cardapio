@@ -2,7 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { NextRequest } from "next/server";
 
 const SECRET = new TextEncoder().encode(
-  process.env.ADMIN_JWT_SECRET || "adonay_super_secret_jwt_2025_change_in_production"
+  process.env.ADMIN_JWT_SECRET || "grillcentral_super_secret_jwt_2025_change_in_production"
 );
 
 export interface AdminTokenPayload {

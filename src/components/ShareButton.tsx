@@ -3,7 +3,7 @@
 export default function ShareButton() {
   function handleShare() {
     if (navigator.share) {
-      navigator.share({ title: "Lanche Adonay", url: window.location.href });
+      navigator.share({ title: "Grill Central", url: window.location.href });
     } else {
       navigator.clipboard?.writeText(window.location.href);
     }

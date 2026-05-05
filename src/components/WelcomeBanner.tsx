@@ -13,7 +13,7 @@ export default function WelcomeBanner() {
         width: "100%",
       }}
     >
-      Seja bem vindo(a) a Restaurante Adonay. Faça seu pedido abaixo!
+      Seja bem vindo(a) ao Grill Central. Faça seu pedido abaixo!
     </div>
   );
 }

@@ -64,7 +64,7 @@ function CheckoutModal({ cart, subtotal, whatsapp, onClose, onSuccess }: {
 
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem("adonay_quick_user") || "null");
+      const saved = JSON.parse(localStorage.getItem("grillcentral_quick_user") || "null");
       if (saved?.name) setName(saved.name);
       if (saved?.phone) setPhone(fmtPhone(String(saved.phone)));
       if (saved?.address) setAddress(saved.address);
@@ -106,7 +106,7 @@ function CheckoutModal({ cart, subtotal, whatsapp, onClose, onSuccess }: {
       address: address.trim() || undefined,
       complement: complement.trim() || undefined,
     };
-    localStorage.setItem("adonay_quick_user", JSON.stringify(savedUser));
+    localStorage.setItem("grillcentral_quick_user", JSON.stringify(savedUser));
 
     setLoading(true);
     try {
@@ -129,7 +129,7 @@ function CheckoutModal({ cart, subtotal, whatsapp, onClose, onSuccess }: {
       });
       const order = await res.json();
 
-      let msg = `🛒 *Pedido #${order.id} — Adonay Lanches*\n\n`;
+      let msg = `🛒 *Pedido #${order.id} — Grill Central*\n\n`;
       msg += `👤 *Cliente:* ${savedUser.name}\n`;
       msg += `📱 *Telefone:* ${savedUser.phone}\n\n`;
       msg += `*Itens:*\n`;
@@ -152,7 +152,7 @@ function CheckoutModal({ cart, subtotal, whatsapp, onClose, onSuccess }: {
         if (lat && lng) msg += `📌 *Mapa:* https://www.google.com/maps?q=${lat},${lng}\n`;
       }
 
-      localStorage.setItem("adonay_cart", "[]");
+      localStorage.setItem("grillcentral_cart", "[]");
       window.open(`https://wa.me/${whatsapp}?text=${encodeURIComponent(msg)}`, "_blank");
       onSuccess();
     } catch {
@@ -282,7 +282,7 @@ export default function Carrinho() {
   const [whatsapp, setWhatsapp] = useState("");
 
   useEffect(() => {
-    try { setCart(JSON.parse(localStorage.getItem("adonay_cart") || "[]")); } catch { setCart([]); }
+    try { setCart(JSON.parse(localStorage.getItem("grillcentral_cart") || "[]")); } catch { setCart([]); }
     fetch("/api/menu").then((r) => r.ok ? r.json() : null).then((data) => {
       if (data?.restaurant?.whatsapp) setWhatsapp(data.restaurant.whatsapp);
     }).catch(() => {});
@@ -293,12 +293,12 @@ export default function Carrinho() {
   const update = (id: string, qty: number) => {
     const next = qty <= 0 ? cart.filter((i) => i.id !== id) : cart.map((i) => i.id === id ? { ...i, qty } : i);
     setCart(next);
-    localStorage.setItem("adonay_cart", JSON.stringify(next));
+    localStorage.setItem("grillcentral_cart", JSON.stringify(next));
   };
 
   const handleCheckoutClose = () => {
     setShowCheckout(false);
-    try { setCart(JSON.parse(localStorage.getItem("adonay_cart") || "[]")); } catch {}
+    try { setCart(JSON.parse(localStorage.getItem("grillcentral_cart") || "[]")); } catch {}
   };
 
   const [sending, setSending] = useState(false);
@@ -324,7 +324,7 @@ export default function Carrinho() {
       });
       const order = await res.json();
 
-      let msg = `🛒 *Pedido #${order.id} — Adonay Lanches*\n\n`;
+      let msg = `🛒 *Pedido #${order.id} — Grill Central*\n\n`;
       msg += `👤 *Cliente:* ${user.name}\n`;
       msg += `📱 *Telefone:* ${user.phone}\n\n`;
       msg += `*Itens:*\n`;
@@ -338,7 +338,7 @@ export default function Carrinho() {
         msg += `🏠 *Retirada no local*\n`;
       }
 
-      localStorage.setItem("adonay_cart", "[]");
+      localStorage.setItem("grillcentral_cart", "[]");
       setCart([]);
       window.open(`https://wa.me/${whatsapp}?text=${encodeURIComponent(msg)}`, "_blank");
     } catch {
@@ -427,7 +427,7 @@ export default function Carrinho() {
           subtotal={subtotal}
           whatsapp={whatsapp}
           onClose={() => setShowCheckout(false)}
-          onSuccess={() => { localStorage.setItem("adonay_cart", "[]"); setCart([]); setShowCheckout(false); router.push("/"); }}
+          onSuccess={() => { localStorage.setItem("grillcentral_cart", "[]"); setCart([]); setShowCheckout(false); router.push("/"); }}
         />
       )}
     </div>

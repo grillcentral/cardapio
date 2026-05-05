@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Adonay Lanches — Delivery | Manaus, AM",
-  description: "Restaurante Adonay - Almoço e delivery de lanches em Manaus. Peça pelo WhatsApp!",
+  title: "Grill Central — Cardápio | Sabor das Carnes e Lanches",
+  description: "Grill Central - Cardápio online. Peça pelo WhatsApp! Terça a Domingo, 18:30 às 23:30.",
 };
 
 export default function RootLayout({

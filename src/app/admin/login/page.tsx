@@ -68,7 +68,7 @@ export default function AdminLoginPage() {
           <h1 style={{
             fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700,
             color: "#c9a84c", margin: 0,
-          }}>Adonay Lanches</h1>
+          }}>Grill Central</h1>
           <p style={{ color: "#5a5650", fontSize: 13, marginTop: 6 }}>Painel Administrativo</p>
         </div>
 
@@ -91,7 +91,7 @@ export default function AdminLoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@adonay.com"
+                placeholder="admin@grillcentral.com"
                 required
                 style={inp}
               />
@@ -138,7 +138,7 @@ export default function AdminLoginPage() {
         </div>
 
         <p style={{ textAlign: "center", color: "#3a3830", fontSize: 12, marginTop: 20 }}>
-          Adonay Lanches &copy; {new Date().getFullYear()}
+          Grill Central &copy; {new Date().getFullYear()}
         </p>
       </div>
     </div>
