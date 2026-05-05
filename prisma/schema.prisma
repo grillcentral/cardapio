@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model Restaurant {
@@ -126,4 +126,14 @@ model Banner {
   isActive     Boolean    @default(true)
   createdAt    DateTime   @default(now())
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+}
+
+model Customer {
+  id         Int      @id @default(autoincrement())
+  phone      String   @unique
+  name       String
+  address    String?
+  complement String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
