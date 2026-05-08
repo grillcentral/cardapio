@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import QuickUserModal, { type QuickUser } from "@/components/QuickUserModal";
+import { openRestaurantWhatsApp, RESTAURANT_WA } from "@/lib/whatsapp";
 
 /* ═══════════════════════════════════════════
    TYPES
@@ -14,6 +15,8 @@ interface MenuItem {
   img?: string | null;
   destaque?: boolean;
   badge?: string;
+  /** ID real do banco de dados. Undefined quando vem do menu hardcoded (fallback). */
+  productId?: number;
 }
 
 interface MenuCategory {
@@ -31,6 +34,8 @@ interface CartItem {
   price: number;
   qty: number;
   obs: string;
+  /** ID do produto no banco — obrigatório para POST /api/orders. */
+  productId?: number;
 }
 
 interface User {
@@ -349,6 +354,7 @@ function CartSidebar({ cart, onUpdate, onRemove, onClear, mobileOpen, onCloseMob
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const count = cart.reduce((s, i) => s + i.qty, 0);
 
+  // Retorna texto puro — o helper openRestaurantWhatsApp faz o encodeURIComponent
   const waMsg = () => {
     const u: User | null = (() => { try { return JSON.parse(localStorage.getItem("grillcentral_current_user") || "null"); } catch { return null; } })();
     let m = "🛒 *Pedido — Grill Central*\n\n";
@@ -356,7 +362,7 @@ function CartSidebar({ cart, onUpdate, onRemove, onClear, mobileOpen, onCloseMob
     cart.forEach((i) => { m += `• ${i.qty}x ${i.name} — ${fmt(i.price * i.qty)}\n`; if (i.obs) m += `  _(${i.obs})_\n`; });
     m += `\n*Total: ${fmt(total)}*\n\n`;
     m += u?.address ? `📍 *Endereço:* ${u.address}` : "📍 *Endereço para entrega:* ";
-    return encodeURIComponent(m);
+    return m;
   };
 
   const [waLoading, setWaLoading] = useState(false);
@@ -375,7 +381,7 @@ function CartSidebar({ cart, onUpdate, onRemove, onClear, mobileOpen, onCloseMob
         body: JSON.stringify({
           customer_name: user.name,
           customer_phone: user.phone,
-          items: cart,
+          items: cart.map((i) => ({ productId: i.productId, name: i.name, qty: i.qty, obs: i.obs })),
           subtotal: total,
           delivery_fee: 0,
           total,
@@ -383,8 +389,8 @@ function CartSidebar({ cart, onUpdate, onRemove, onClear, mobileOpen, onCloseMob
           payment: "A confirmar",
         }),
       });
-      if (!res.ok) throw new Error("api_error");
       const order = await res.json();
+      if (!res.ok) throw new Error(order.error || "api_error");
       let m = `🛒 *Pedido #${order.id} — Grill Central*\n\n`;
       m += `👤 *Cliente:* ${user.name}\n`;
       m += `📱 *Telefone:* ${user.phone}\n\n`;
@@ -394,9 +400,13 @@ function CartSidebar({ cart, onUpdate, onRemove, onClear, mobileOpen, onCloseMob
       m += `📍 *Endereço:* ${user.address || "a combinar"}\n`;
       if (user.complement) m += `🏷️ *Ref:* ${user.complement}\n`;
       if (user.lat && user.lng) m += `📌 *Mapa:* https://maps.google.com/?q=${user.lat},${user.lng}\n`;
-      window.open(`https://wa.me/${whatsapp}?text=${encodeURIComponent(m)}`, "_blank");
+      // eslint-disable-next-line no-console
+      console.log("FLUXO_PEDIDO_USADO", "whatsapp-direto-carrinho-sucesso");
+      openRestaurantWhatsApp(m);
     } catch {
-      window.open(`https://wa.me/${whatsapp}?text=${waMsg()}`, "_blank");
+      // eslint-disable-next-line no-console
+      console.log("FLUXO_PEDIDO_USADO", "whatsapp-direto-carrinho-fallback");
+      openRestaurantWhatsApp(waMsg());
     } finally {
       setWaLoading(false);
     }
@@ -539,7 +549,15 @@ export default function App() {
   });
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>(() => {
-    if (typeof window !== "undefined") { try { return JSON.parse(localStorage.getItem("grillcentral_cart") || "[]"); } catch { return []; } }
+    if (typeof window !== "undefined") {
+      try {
+        const raw: CartItem[] = JSON.parse(localStorage.getItem("grillcentral_cart") || "[]");
+        // Descartar itens legados sem productId — incompatíveis com o backend atual.
+        const valid = raw.filter((i) => typeof i.productId === "number" && i.productId > 0);
+        if (valid.length !== raw.length) localStorage.setItem("grillcentral_cart", JSON.stringify(valid));
+        return valid;
+      } catch { return []; }
+    }
     return [];
   });
   const [modal, setModal] = useState<MenuItem | null>(null);
@@ -557,7 +575,8 @@ export default function App() {
   // ── API-driven menu (replaces hardcoded data when DB is available) ─────────
   const [apiCategories, setApiCategories] = useState<MenuCategory[] | null>(null);
   const [apiLoading, setApiLoading] = useState(true);
-  const [whatsapp, setWhatsapp] = useState("");
+  // Número fixo como fallback garantido — atualizado pela API se disponível
+  const [whatsapp, setWhatsapp] = useState("5548988362576");
 
   useEffect(() => {
     fetch("/api/menu")
@@ -581,6 +600,7 @@ export default function App() {
               price: p.price,
               img: p.imageUrl,
               destaque: p.isFeatured,
+              productId: p.id,
             })),
           }));
           setApiCategories(mapped);
@@ -618,7 +638,7 @@ export default function App() {
     setCart((prev) => {
       const ex = prev.find((i) => i.id === id);
       if (ex) return prev.map((i) => i.id === id ? { ...i, qty: i.qty + qty } : i);
-      return [...prev, { id, name: item.name, price: item.price, qty, obs }];
+      return [...prev, { id, name: item.name, price: item.price, qty, obs, productId: item.productId }];
     });
     setToast(item.name);
     setTimeout(() => setToast(null), 2200);
@@ -647,7 +667,7 @@ export default function App() {
         body: JSON.stringify({
           customer_name: user.name,
           customer_phone: user.phone,
-          items: [{ name: item.name, price: item.price, qty: 1, obs: "" }],
+          items: [{ productId: item.productId, name: item.name, price: item.price, qty: 1, obs: "" }],
           subtotal: itemTotal,
           delivery_fee: 0,
           total: itemTotal,
@@ -665,7 +685,9 @@ export default function App() {
       m += `📍 *Endereço:* ${user.address || "a combinar"}\n`;
       if (user.complement) m += `🏷️ *Ref:* ${user.complement}\n`;
       if (user.lat && user.lng) m += `📌 *Mapa:* https://maps.google.com/?q=${user.lat},${user.lng}\n`;
-      window.open(`https://wa.me/${whatsapp}?text=${encodeURIComponent(m)}`, "_blank");
+      // eslint-disable-next-line no-console
+      console.log("FLUXO_PEDIDO_USADO", "pedir-agora-sucesso");
+      openRestaurantWhatsApp(m);
     } catch {
       let m = `🛒 *Pedido — Grill Central*\n\n`;
       m += `👤 *Cliente:* ${user.name}\n📱 *Telefone:* ${user.phone}\n\n• 1x ${item.name} — ${fmt(itemTotal)}\n`;
@@ -673,7 +695,9 @@ export default function App() {
       m += `📍 *Endereço:* ${user.address || "a combinar"}\n`;
       if (user.complement) m += `🏷️ *Ref:* ${user.complement}\n`;
       if (user.lat && user.lng) m += `📌 *Mapa:* https://maps.google.com/?q=${user.lat},${user.lng}\n`;
-      window.open(`https://wa.me/${whatsapp}?text=${encodeURIComponent(m)}`, "_blank");
+      // eslint-disable-next-line no-console
+      console.log("FLUXO_PEDIDO_USADO", "pedir-agora-fallback");
+      openRestaurantWhatsApp(m);
     } finally {
       setQuickOrderingName(null);
     }
@@ -749,7 +773,7 @@ export default function App() {
               👤 Entrar / Cadastrar
             </button>
           }
-          <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noopener noreferrer" className="hide-mob"
+          <a href={`https://wa.me/${RESTAURANT_WA}`} target="_blank" rel="noopener noreferrer" className="hide-mob"
             style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", background: "rgba(37,211,102,0.12)", border: "1px solid rgba(37,211,102,0.25)", borderRadius: 7, textDecoration: "none", color: "#25D366", fontSize: 12, fontWeight: 500, whiteSpace: "nowrap" }}>
             <WaIcon s={14} /> WhatsApp
           </a>
@@ -778,7 +802,7 @@ export default function App() {
               <MapPin s={11} /> www.grillcardapio.com.br
             </div>
           </div>
-          <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noopener noreferrer" className="hide-mob"
+          <a href={`https://wa.me/${RESTAURANT_WA}`} target="_blank" rel="noopener noreferrer" className="hide-mob"
             style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 18px", background: "linear-gradient(135deg,#1db954,#25D366)", borderRadius: 10, textDecoration: "none", color: "#fff", fontWeight: 700, fontSize: 13, fontFamily: "DM Sans,sans-serif", boxShadow: "0 4px 20px rgba(37,211,102,0.3)", flexShrink: 0 }}>
             <WaIcon s={16} /> Pedir agora
           </a>
@@ -870,9 +894,9 @@ export default function App() {
           </div>
           <div>
             <div style={{ fontSize: 12, fontWeight: 600, color: "#9e9a90", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Contato</div>
-            <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noopener noreferrer"
+            <a href={`https://wa.me/${RESTAURANT_WA}`} target="_blank" rel="noopener noreferrer"
               style={{ display: "flex", alignItems: "center", gap: 6, color: "#25D366", textDecoration: "none", fontSize: 12, marginBottom: 5 }}>
-              <WaIcon s={13} /> {whatsapp.replace(/^55(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3")}
+              <WaIcon s={13} /> {RESTAURANT_WA.replace(/^55(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3")}
             </a>
           </div>
         </div>

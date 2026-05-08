@@ -14,9 +14,10 @@ interface AdminUser {
 }
 
 const NAV_ITEMS = [
-  { href: "/admin/dashboard", label: "Dashboard", icon: "📊" },
-  { href: "/admin/produtos", label: "Produtos", icon: "🍽️" },
-  { href: "/admin/categorias", label: "Categorias", icon: "📂" },
+  { href: "/admin/dashboard",   label: "Dashboard",    icon: "📊" },
+  { href: "/admin/pedidos",     label: "Pedidos",       icon: "📦" },
+  { href: "/admin/produtos",    label: "Produtos",      icon: "🍽️" },
+  { href: "/admin/categorias",  label: "Categorias",    icon: "📂" },
   { href: "/admin/configuracoes", label: "Configurações", icon: "⚙️" },
 ];
 

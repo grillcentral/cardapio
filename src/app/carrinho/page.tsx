@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { openRestaurantWhatsApp } from "@/lib/whatsapp";
 
 interface CartItem {
   id: string;
@@ -9,15 +10,20 @@ interface CartItem {
   price: number;
   qty: number;
   obs: string;
+  /** ID do produto no banco — obrigatório para POST /api/orders. */
+  productId?: number;
 }
 
 const fmt = (n: number) => `R$ ${n.toFixed(2).replace(".", ",")}`;
 
+// Valores exatos aceitos pelo backend (POST /api/orders whitelist)
 const PAYMENTS = [
   "Dinheiro",
-  "PIX",
-  "Cartão de Débito - Maquininha",
-  "Cartão de Crédito - Maquininha",
+  "Pix",
+  "Cartão de Crédito",
+  "Cartão de Débito",
+  "Vale Alimentação",
+  "A confirmar",
 ];
 
 const inp: React.CSSProperties = {
@@ -116,7 +122,7 @@ function CheckoutModal({ cart, subtotal, whatsapp, onClose, onSuccess }: {
         body: JSON.stringify({
           customer_name: savedUser.name,
           customer_phone: savedUser.phone,
-          items: cart,
+          items: cart.map((i) => ({ productId: i.productId, name: i.name, qty: i.qty, obs: i.obs })),
           subtotal,
           delivery_fee: 0,
           total: subtotal,
@@ -128,6 +134,10 @@ function CheckoutModal({ cart, subtotal, whatsapp, onClose, onSuccess }: {
         }),
       });
       const order = await res.json();
+      if (!res.ok) {
+        setErr(order.error || "Erro ao registrar pedido. Tente novamente.");
+        return;
+      }
 
       let msg = `🛒 *Pedido #${order.id} — Grill Central*\n\n`;
       msg += `👤 *Cliente:* ${savedUser.name}\n`;
@@ -153,7 +163,9 @@ function CheckoutModal({ cart, subtotal, whatsapp, onClose, onSuccess }: {
       }
 
       localStorage.setItem("grillcentral_cart", "[]");
-      window.open(`https://wa.me/${whatsapp}?text=${encodeURIComponent(msg)}`, "_blank");
+      // eslint-disable-next-line no-console
+      console.log("FLUXO_PEDIDO_USADO", "checkout-modal");
+      openRestaurantWhatsApp(msg);
       onSuccess();
     } catch {
       setErr("Erro ao registrar pedido. Tente novamente.");
@@ -279,7 +291,8 @@ export default function Carrinho() {
   const router = useRouter();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
-  const [whatsapp, setWhatsapp] = useState("");
+  // Número fixo como fallback garantido — atualizado pela API se disponível
+  const [whatsapp, setWhatsapp] = useState("5548988362576");
 
   useEffect(() => {
     try { setCart(JSON.parse(localStorage.getItem("grillcentral_cart") || "[]")); } catch { setCart([]); }
@@ -313,7 +326,7 @@ export default function Carrinho() {
         body: JSON.stringify({
           customer_name: user.name,
           customer_phone: user.phone,
-          items: cart,
+          items: cart.map((i) => ({ productId: i.productId, name: i.name, qty: i.qty, obs: i.obs })),
           subtotal,
           delivery_fee: 0,
           total: subtotal,
@@ -323,6 +336,7 @@ export default function Carrinho() {
         }),
       });
       const order = await res.json();
+      if (!res.ok) throw new Error(order.error || "api_error");
 
       let msg = `🛒 *Pedido #${order.id} — Grill Central*\n\n`;
       msg += `👤 *Cliente:* ${user.name}\n`;
@@ -340,7 +354,9 @@ export default function Carrinho() {
 
       localStorage.setItem("grillcentral_cart", "[]");
       setCart([]);
-      window.open(`https://wa.me/${whatsapp}?text=${encodeURIComponent(msg)}`, "_blank");
+      // eslint-disable-next-line no-console
+      console.log("FLUXO_PEDIDO_USADO", "send-direct");
+      openRestaurantWhatsApp(msg);
     } catch {
       setShowCheckout(true);
     } finally {
