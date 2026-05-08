@@ -149,28 +149,34 @@ export async function POST(req: NextRequest) {
     const deliveryFee = 0; // TODO: buscar taxa de entrega configurada por restaurante
     const calculatedTotal = Math.round((calculatedSubtotal + deliveryFee) * 100) / 100;
 
-    // ── 8. Upsert do Cliente ──────────────────────────────────────
-    const customer = await prisma.customer.upsert({
-      where: { phone: phoneDigits },
-      create: {
-        phone: phoneDigits,
-        name: customer_name.trim(),
-        address: address_json?.endereco?.trim() || null,
-        complement: address_json?.complemento?.trim() || null,
-      },
-      update: {
-        name: customer_name.trim(),
-        ...(address_json?.endereco ? { address: address_json.endereco.trim() } : {}),
-        ...(address_json?.complemento ? { complement: address_json.complemento.trim() } : {}),
-      },
-    });
+    // ── 8. Upsert do Cliente (opcional — não bloqueia o pedido) ───
+    // Se a tabela Customer ainda não existe no banco de produção, loga
+    // o aviso mas continua criando o pedido normalmente.
+    try {
+      await prisma.customer.upsert({
+        where: { phone: phoneDigits },
+        create: {
+          phone: phoneDigits,
+          name: customer_name.trim(),
+          address: address_json?.endereco?.trim() || null,
+          complement: address_json?.complemento?.trim() || null,
+        },
+        update: {
+          name: customer_name.trim(),
+          ...(address_json?.endereco ? { address: address_json.endereco.trim() } : {}),
+          ...(address_json?.complemento ? { complement: address_json.complemento.trim() } : {}),
+        },
+      });
+    } catch (customerErr) {
+      console.warn("Customer upsert skipped (table may not exist):", customerErr);
+    }
 
     // ── 9. Criar Order + OrderItems ───────────────────────────────
     const order = await prisma.order.create({
       data: {
         restaurantId: 1,
-        customerName: customer.name,
-        customerPhone: customer.phone,
+        customerName: customer_name.trim(),
+        customerPhone: phoneDigits,
         orderType: order_type as OrderType,
         payment: payment.trim() as Payment,
         subtotal: calculatedSubtotal,
@@ -187,8 +193,12 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(serializeOrder(order), { status: 201 });
   } catch (err) {
-    console.error("Orders POST error:", err);
-    return NextResponse.json({ error: "Erro interno ao criar pedido." }, { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("Orders POST error:", msg, err);
+    return NextResponse.json(
+      { error: "Erro interno ao criar pedido.", detail: msg },
+      { status: 500 }
+    );
   }
 }
 
