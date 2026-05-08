@@ -95,11 +95,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── 5. Endereço obrigatório para delivery ─────────────────────
+    // ── 5. Endereço para delivery — texto OU localização GPS ──────
     if (order_type === "delivery") {
-      const endereco = address_json?.endereco;
-      if (!endereco || typeof endereco !== "string" || endereco.trim().length < 5) {
-        return badRequest("Endereço é obrigatório para pedidos de delivery.");
+      const endereco = address_json?.endereco?.trim() ?? "";
+      const hasGps = address_json?.lat != null && address_json?.lng != null;
+      if (!hasGps && endereco.length < 5) {
+        return badRequest(
+          "Informe o endereço de entrega ou envie sua localização GPS."
+        );
       }
     }
 
