@@ -60,10 +60,16 @@ export async function POST(req: NextRequest) {
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
 
-      if (!item.productId || !Number.isInteger(item.productId) || item.productId < 1) {
-        return badRequest(
-          `Item ${i + 1} ("${item.name ?? "?"}"): productId ausente ou inválido.`
-        );
+      if (!item.name || typeof item.name !== "string" || !item.name.trim()) {
+        return badRequest(`Item ${i + 1}: nome do produto é obrigatório.`);
+      }
+
+      // productId é opcional — quando presente deve ser inteiro ≥ 1
+      if (item.productId !== undefined && item.productId !== null) {
+        const pid = Number(item.productId);
+        if (!Number.isInteger(pid) || pid < 1) {
+          return badRequest(`Item ${i + 1} ("${item.name}"): productId inválido.`);
+        }
       }
 
       if (!Number.isInteger(item.qty) || item.qty < 1) {
@@ -97,43 +103,40 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── 6. Buscar produtos reais no banco ─────────────────────────
-    const incomingProductIds: number[] = items.map(
-      (item: { productId: number }) => item.productId
-    );
+    // ── 6. Buscar produtos no banco (apenas os que têm productId) ──
+    const idsToLookup: number[] = items
+      .map((item: { productId?: number }) => Number(item.productId))
+      .filter((id: number) => Number.isInteger(id) && id >= 1);
 
-    const dbProducts = await prisma.product.findMany({
-      where: {
-        id: { in: incomingProductIds },
-        restaurantId: 1,
-        isActive: true,
-      },
-      select: { id: true, name: true, price: true },
-    });
+    const productMap = new Map<number, { id: number; name: string; price: number }>();
 
-    const productMap = new Map(dbProducts.map((p) => [p.id, p]));
-
-    // Garantir que todos os itens têm produto ativo correspondente
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (!productMap.has(item.productId)) {
-        return badRequest(
-          `Item ${i + 1} (productId: ${item.productId}): produto não encontrado ou inativo.`
-        );
-      }
+    if (idsToLookup.length > 0) {
+      const dbProducts = await prisma.product.findMany({
+        where: { id: { in: idsToLookup }, restaurantId: 1, isActive: true },
+        select: { id: true, name: true, price: true },
+      });
+      dbProducts.forEach((p) => productMap.set(p.id, { ...p, price: Number(p.price) }));
     }
 
     // ── 7. Recalcular preços no backend ───────────────────────────
+    // Se productId encontrado no banco → usa preço do banco (seguro).
+    // Se não encontrado → aceita preço enviado pelo cliente (modo fallback
+    // para itens do cardápio hardcoded que não existem no banco ainda).
     let calculatedSubtotal = 0;
 
     const orderItemsData = items.map(
-      (item: { productId: number; qty: number; obs?: string }) => {
-        const product = productMap.get(item.productId)!;
-        calculatedSubtotal = Math.round((calculatedSubtotal + product.price * item.qty) * 100) / 100;
+      (item: { productId?: number; name: string; price?: number; qty: number; obs?: string }) => {
+        const dbProduct = item.productId ? productMap.get(item.productId) : undefined;
+        const unitPrice = dbProduct
+          ? dbProduct.price
+          : (typeof item.price === "number" && item.price > 0 ? item.price : 0);
+        const productName = dbProduct ? dbProduct.name : item.name.trim();
+
+        calculatedSubtotal = Math.round((calculatedSubtotal + unitPrice * item.qty) * 100) / 100;
         return {
-          productId: product.id,
-          name: product.name,           // nome canônico do banco
-          price: product.price,         // preço real do banco
+          productId: dbProduct?.id ?? null,  // nullable — OK conforme schema
+          name: productName,
+          price: unitPrice,
           qty: item.qty,
           obs: item.obs?.trim() || null,
         };

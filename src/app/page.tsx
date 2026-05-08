@@ -381,7 +381,7 @@ function CartSidebar({ cart, onUpdate, onRemove, onClear, mobileOpen, onCloseMob
         body: JSON.stringify({
           customer_name: user.name,
           customer_phone: user.phone,
-          items: cart.map((i) => ({ productId: i.productId, name: i.name, qty: i.qty, obs: i.obs })),
+          items: cart.map((i) => ({ productId: i.productId, name: i.name, price: i.price, qty: i.qty, obs: i.obs })),
           subtotal: total,
           delivery_fee: 0,
           total,
@@ -551,11 +551,7 @@ export default function App() {
   const [cart, setCart] = useState<CartItem[]>(() => {
     if (typeof window !== "undefined") {
       try {
-        const raw: CartItem[] = JSON.parse(localStorage.getItem("grillcentral_cart") || "[]");
-        // Descartar itens legados sem productId — incompatíveis com o backend atual.
-        const valid = raw.filter((i) => typeof i.productId === "number" && i.productId > 0);
-        if (valid.length !== raw.length) localStorage.setItem("grillcentral_cart", JSON.stringify(valid));
-        return valid;
+        return JSON.parse(localStorage.getItem("grillcentral_cart") || "[]") as CartItem[];
       } catch { return []; }
     }
     return [];
@@ -667,7 +663,7 @@ export default function App() {
         body: JSON.stringify({
           customer_name: user.name,
           customer_phone: user.phone,
-          items: [{ productId: item.productId, name: item.name, price: item.price, qty: 1, obs: "" }],
+          items: [{ productId: item.productId ?? null, name: item.name, price: item.price, qty: 1, obs: "" }],
           subtotal: itemTotal,
           delivery_fee: 0,
           total: itemTotal,

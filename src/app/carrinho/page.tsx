@@ -122,7 +122,7 @@ function CheckoutModal({ cart, subtotal, whatsapp, onClose, onSuccess }: {
         body: JSON.stringify({
           customer_name: savedUser.name,
           customer_phone: savedUser.phone,
-          items: cart.map((i) => ({ productId: i.productId, name: i.name, qty: i.qty, obs: i.obs })),
+          items: cart.map((i) => ({ productId: i.productId ?? null, name: i.name, price: i.price, qty: i.qty, obs: i.obs })),
           subtotal,
           delivery_fee: 0,
           total: subtotal,
@@ -326,7 +326,7 @@ export default function Carrinho() {
         body: JSON.stringify({
           customer_name: user.name,
           customer_phone: user.phone,
-          items: cart.map((i) => ({ productId: i.productId, name: i.name, qty: i.qty, obs: i.obs })),
+          items: cart.map((i) => ({ productId: i.productId ?? null, name: i.name, price: i.price, qty: i.qty, obs: i.obs })),
           subtotal,
           delivery_fee: 0,
           total: subtotal,
