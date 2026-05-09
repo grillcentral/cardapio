@@ -25,6 +25,7 @@ interface Order {
   addressJson: string | null;
   notes: string | null;
   status: string;
+  autoAccepted: boolean;
   createdAt: string;
   items: OrderItem[];
 }
@@ -238,7 +239,7 @@ function OrderCard({ order, onStatusChange }: {
       >
         {/* ID + hora */}
         <div style={{ minWidth: 90, flexShrink: 0 }}>
-          <div style={{ fontWeight: 800, color: "#c9a84c", fontSize: 14, display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ fontWeight: 800, color: "#c9a84c", fontSize: 14, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             #{order.id}
             {isReceived && (
               <span style={{
@@ -247,6 +248,16 @@ function OrderCard({ order, onStatusChange }: {
                 animation: "pulseNew 1.4s ease-in-out infinite",
               }}>
                 NOVO
+              </span>
+            )}
+            {order.autoAccepted && (
+              <span style={{
+                background: "rgba(76,175,80,0.15)", color: "#4caf50",
+                border: "1px solid rgba(76,175,80,0.35)",
+                fontSize: 9, fontWeight: 700,
+                padding: "2px 6px", borderRadius: 10, letterSpacing: "0.04em",
+              }}>
+                ⚡ AUTO
               </span>
             )}
           </div>

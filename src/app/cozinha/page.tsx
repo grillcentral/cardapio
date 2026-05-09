@@ -24,6 +24,7 @@ interface Order {
   addressJson: string | null;
   notes: string | null;
   status: string;
+  autoAccepted: boolean;
   createdAt: string;
   items: OrderItem[];
 }
@@ -162,6 +163,18 @@ function KitchenCard({
             animation: "pulseNew 1.2s ease-in-out infinite",
           }}>
             NOVO
+          </span>
+        )}
+
+        {/* Auto-aceito badge */}
+        {order.autoAccepted && (
+          <span style={{
+            background: "rgba(76,175,80,0.18)", color: "#4caf50",
+            border: "1px solid rgba(76,175,80,0.4)",
+            fontSize: 9, fontWeight: 700,
+            padding: "2px 7px", borderRadius: 10, letterSpacing: "0.05em",
+          }}>
+            ⚡ AUTO
           </span>
         )}
 
@@ -371,11 +384,29 @@ export default function CozinhaPage() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [newIds, setNewIds] = useState<Set<number>>(new Set());
   const [now, setNow] = useState<Date>(new Date());
+  const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
 
   const lastKnownMaxIdRef = useRef<number>(0);
   const isInitialLoadRef = useRef<boolean>(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const clockRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Track IDs já impressos automaticamente para não reimprimir no próximo poll
+  const autoPrintedRef = useRef<Set<number>>(new Set());
+  // Ref espelho de autoPrintEnabled para uso dentro do callback sem re-criar
+  const autoPrintEnabledRef = useRef(false);
+
+  // Busca configuração de auto-print ao montar (uma única vez)
+  useEffect(() => {
+    fetch("/api/admin/restaurante")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (d?.autoPrintOnAccept) {
+          setAutoPrintEnabled(true);
+          autoPrintEnabledRef.current = true;
+        }
+      })
+      .catch(() => { /* silencioso — auto-print permanece desativado */ });
+  }, []);
 
   const fetchOrders = useCallback(async (showLoader = false) => {
     if (showLoader) setLoading(true);
@@ -392,11 +423,20 @@ export default function CozinhaPage() {
       // Detect new orders
       const maxId = list.reduce((m, o) => Math.max(m, o.id), 0);
       if (!isInitialLoadRef.current && maxId > lastKnownMaxIdRef.current) {
-        const incoming = list
-          .filter((o) => o.id > lastKnownMaxIdRef.current)
-          .map((o) => o.id);
-        setNewIds((prev) => new Set([...prev, ...incoming]));
+        const incoming = list.filter((o) => o.id > lastKnownMaxIdRef.current);
+        setNewIds((prev) => new Set([...prev, ...incoming.map((o) => o.id)]));
         playNewOrderSound();
+
+        // Auto-print: disparar impressão para pedidos auto-aceitos novos
+        if (autoPrintEnabledRef.current) {
+          incoming
+            .filter((o) => o.autoAccepted && o.status === "CONFIRMED" && !autoPrintedRef.current.has(o.id))
+            .forEach((o) => {
+              autoPrintedRef.current.add(o.id);
+              // Pequeno delay para dar tempo ao browser de renderizar antes do print
+              setTimeout(() => printOrder(o), 600);
+            });
+        }
       }
       lastKnownMaxIdRef.current = Math.max(lastKnownMaxIdRef.current, maxId);
       isInitialLoadRef.current = false;
@@ -526,6 +566,15 @@ export default function CozinhaPage() {
 
           {/* Right: clock + total + refresh */}
           <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
+            {autoPrintEnabled && (
+              <div style={{
+                fontSize: 10, fontWeight: 700, color: "#4caf50",
+                background: "rgba(76,175,80,0.12)", border: "1px solid rgba(76,175,80,0.3)",
+                borderRadius: 8, padding: "3px 8px", letterSpacing: "0.04em",
+              }}>
+                ⚡ AUTO-PRINT
+              </div>
+            )}
             {totalActive > 0 && (
               <div style={{ fontSize: 13, fontWeight: 700, color: "#c9a84c" }}>
                 {totalActive} ativo{totalActive !== 1 ? "s" : ""}

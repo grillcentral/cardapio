@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { isRestaurantOpen } from "@/lib/isRestaurantOpen";
 
 // ── Whitelists ────────────────────────────────────────────────────────────────
 const VALID_ORDER_TYPES = ["delivery", "retirada", "whatsapp_direct"] as const;
@@ -218,9 +219,42 @@ export async function POST(req: NextRequest) {
       console.warn("STEP8_CUSTOMER_SKIP:", ce.message, "code:", ce.code, "meta:", ce.meta);
     }
 
-    // ── 9. Criar Order + OrderItems ───────────────────────────────
+    // ── 9. Auto-aceite: checar configuração + horário ─────────────
+    let initialStatus = "RECEIVED";
+    let autoAccepted  = false;
+
+    try {
+      const restaurant = await prisma.restaurant.findUnique({
+        where:  { id: 1 },
+        select: {
+          autoAcceptOrders: true,
+          openingHours: {
+            select: { dayOfWeek: true, openTime: true, closeTime: true, isOpen: true },
+          },
+        },
+      });
+
+      if (restaurant?.autoAcceptOrders) {
+        const open = isRestaurantOpen(restaurant.openingHours, new Date());
+        if (open) {
+          initialStatus = "CONFIRMED";
+          autoAccepted  = true;
+          // eslint-disable-next-line no-console
+          console.log("STEP9_AUTO_ACCEPT: restaurante aberto → status=CONFIRMED");
+        } else {
+          // eslint-disable-next-line no-console
+          console.log("STEP9_AUTO_ACCEPT: restaurante fechado → status=RECEIVED (segurança)");
+        }
+      }
+    } catch (autoErr) {
+      // Falha na leitura da config → manter RECEIVED por segurança
+      // eslint-disable-next-line no-console
+      console.warn("STEP9_AUTO_ACCEPT_ERROR (usando RECEIVED):", autoErr);
+    }
+
+    // ── 10. Criar Order + OrderItems ──────────────────────────────
     // eslint-disable-next-line no-console
-    console.log("STEP9_ORDER_CREATE start, restaurantId=1");
+    console.log("STEP10_ORDER_CREATE start, restaurantId=1, status=", initialStatus);
 
     const orderData = {
       restaurantId:  1,
@@ -233,13 +267,14 @@ export async function POST(req: NextRequest) {
       total:         calculatedTotal,
       neighborhood:  neighborhood ? String(neighborhood).trim() || null : null,
       addressJson:   address_json ? JSON.stringify(address_json) : null,
-      status:        "RECEIVED",
+      status:        initialStatus,
+      autoAccepted,
       notes:         notes ? String(notes).trim() || null : null,
       items:         { create: orderItemsData },
     };
 
     // eslint-disable-next-line no-console
-    console.log("STEP9_ORDER_DATA (sem items):", { ...orderData, items: `[${orderItemsData.length} items]` });
+    console.log("STEP10_ORDER_DATA (sem items):", { ...orderData, items: `[${orderItemsData.length} items]` });
 
     const order = await prisma.order.create({
       data:    orderData,
@@ -247,7 +282,7 @@ export async function POST(req: NextRequest) {
     });
 
     // eslint-disable-next-line no-console
-    console.log("STEP9_ORDER_CREATED id:", order.id);
+    console.log("STEP10_ORDER_CREATED id:", order.id, "autoAccepted:", autoAccepted);
     // eslint-disable-next-line no-console
     console.log("=== POST /api/orders SUCCESS ===");
 

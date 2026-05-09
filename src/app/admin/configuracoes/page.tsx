@@ -12,6 +12,8 @@ interface Restaurant {
   address: string | null;
   logoUrl: string | null;
   bannerUrl: string | null;
+  autoAcceptOrders: boolean;
+  autoPrintOnAccept: boolean;
 }
 
 interface OpeningHour {
@@ -29,8 +31,10 @@ export default function ConfiguracoesPage() {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [hours, setHours] = useState<OpeningHour[]>([]);
   const [form, setForm] = useState({ name: "", description: "", phone: "", whatsapp: "", address: "", logoUrl: "" });
+  const [autoForm, setAutoForm] = useState({ autoAcceptOrders: false, autoPrintOnAccept: false });
   const [saving, setSaving] = useState(false);
   const [savingHours, setSavingHours] = useState(false);
+  const [savingAuto, setSavingAuto] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -53,6 +57,10 @@ export default function ConfiguracoesPage() {
           whatsapp: r.whatsapp || "",
           address: r.address || "",
           logoUrl: r.logoUrl || "",
+        });
+        setAutoForm({
+          autoAcceptOrders:  r.autoAcceptOrders  ?? false,
+          autoPrintOnAccept: r.autoPrintOnAccept ?? false,
         });
       }
 
@@ -130,6 +138,25 @@ export default function ConfiguracoesPage() {
       setTimeout(() => setSuccess(""), 3000);
     } catch { setError("Erro de conexão."); }
     finally { setSavingHours(false); }
+  };
+
+  const handleSaveAutomation = async () => {
+    setSavingAuto(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/restaurante", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          autoAcceptOrders:  autoForm.autoAcceptOrders,
+          autoPrintOnAccept: autoForm.autoPrintOnAccept,
+        }),
+      });
+      if (!res.ok) { const d = await res.json(); setError(d.error || "Erro."); return; }
+      setSuccess("Configurações de automação salvas!");
+      setTimeout(() => setSuccess(""), 3000);
+    } catch { setError("Erro de conexão."); }
+    finally { setSavingAuto(false); }
   };
 
   const inp: React.CSSProperties = { width: "100%", background: "#0b0d12", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#f0ede6", padding: "11px 14px", fontSize: 14, fontFamily: "DM Sans, sans-serif", outline: "none", boxSizing: "border-box" };
@@ -251,6 +278,53 @@ export default function ConfiguracoesPage() {
           <button onClick={handleSaveHours} disabled={savingHours}
             style={{ marginTop: 20, padding: "12px 28px", background: savingHours ? "#5a5650" : "linear-gradient(135deg,#c9a84c,#e4c97e)", border: "none", borderRadius: 10, cursor: savingHours ? "not-allowed" : "pointer", color: "#0b0d12", fontWeight: 700, fontSize: 14, fontFamily: "DM Sans, sans-serif" }}>
             {savingHours ? "Salvando..." : "Salvar Horários"}
+          </button>
+        </div>
+
+        {/* Automação de Pedidos */}
+        <div style={{ background: "#111420", borderRadius: 16, padding: 24, border: "1px solid rgba(255,255,255,0.07)", marginTop: 20 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: "#f0ede6", margin: "0 0 6px" }}>Automação de Pedidos</h2>
+          <p style={{ fontSize: 12, color: "#5a5650", margin: "0 0 20px", lineHeight: 1.5 }}>
+            Aceite automático só funciona dentro do horário de funcionamento cadastrado acima. Fora do horário, todo pedido fica em <strong style={{ color: "#9e9a90" }}>RECEBIDO</strong> aguardando confirmação manual.
+          </p>
+
+          {[
+            {
+              key: "autoAcceptOrders" as const,
+              label: "Aceitar pedidos automaticamente",
+              desc: "Novo pedido passa direto para CONFIRMADO se o restaurante estiver aberto",
+              warning: true,
+            },
+            {
+              key: "autoPrintOnAccept" as const,
+              label: "Imprimir ao aceitar automaticamente",
+              desc: "Na tela /cozinha, aciona impressão quando um pedido é auto-aceito",
+              warning: false,
+            },
+          ].map(({ key, label, desc, warning }) => (
+            <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+              <div style={{ flex: 1, paddingRight: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                  <span style={{ fontSize: 13, color: "#f0ede6", fontWeight: 500 }}>{label}</span>
+                  {warning && autoForm[key] && (
+                    <span style={{ fontSize: 10, background: "rgba(232,131,58,0.2)", color: "#e8833a", border: "1px solid rgba(232,131,58,0.35)", borderRadius: 6, padding: "1px 6px", fontWeight: 600 }}>ATIVO</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 11, color: "#5a5650" }}>{desc}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAutoForm((f) => ({ ...f, [key]: !f[key] }))}
+                style={{ width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer", background: autoForm[key] ? "#c9a84c" : "rgba(255,255,255,0.1)", position: "relative", transition: "background 0.2s", flexShrink: 0 }}
+              >
+                <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, transition: "left 0.2s", left: autoForm[key] ? 23 : 3 }} />
+              </button>
+            </div>
+          ))}
+
+          <button onClick={handleSaveAutomation} disabled={savingAuto}
+            style={{ marginTop: 20, padding: "12px 28px", background: savingAuto ? "#5a5650" : "linear-gradient(135deg,#c9a84c,#e4c97e)", border: "none", borderRadius: 10, cursor: savingAuto ? "not-allowed" : "pointer", color: "#0b0d12", fontWeight: 700, fontSize: 14, fontFamily: "DM Sans, sans-serif" }}>
+            {savingAuto ? "Salvando..." : "Salvar Automação"}
           </button>
         </div>
       </div>
