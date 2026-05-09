@@ -13,7 +13,7 @@ const VALID_PAYMENTS = [
 ] as const;
 
 type OrderType = (typeof VALID_ORDER_TYPES)[number];
-type Payment = (typeof VALID_PAYMENTS)[number];
+type Payment   = (typeof VALID_PAYMENTS)[number];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function badRequest(message: string) {
@@ -24,179 +24,258 @@ function badRequest(message: string) {
 function serializeOrder(order: any) {
   return {
     ...order,
-    subtotal: Number(order.subtotal),
+    subtotal:    Number(order.subtotal),
     deliveryFee: Number(order.deliveryFee),
-    total: Number(order.total),
+    total:       Number(order.total),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     items: (order.items as any[]).map((i) => ({ ...i, price: Number(i.price) })),
   };
 }
 
+/** Extrai todos os campos diagnósticos de um erro Prisma/genérico */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractError(err: unknown): { message: string; code?: string; meta?: unknown; stack?: string } {
+  if (err && typeof err === "object") {
+    const e = err as Record<string, unknown>;
+    return {
+      message: typeof e.message === "string" ? e.message : String(err),
+      code:    typeof e.code    === "string" ? e.code    : undefined,
+      meta:    e.meta ?? undefined,
+      stack:   typeof e.stack   === "string" ? e.stack   : undefined,
+    };
+  }
+  return { message: String(err) };
+}
+
 // ── POST /api/orders ──────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const { customer_name, customer_phone, items, order_type, payment, neighborhood, address_json, notes } = body;
+  // eslint-disable-next-line no-console
+  console.log("=== POST /api/orders START ===");
 
-    // ── 1. Identificação do cliente ───────────────────────────────
+  let body: Record<string, unknown> = {};
+
+  try {
+    body = await req.json();
+  } catch {
+    return badRequest("Body inválido — JSON malformado.");
+  }
+
+  // eslint-disable-next-line no-console
+  console.log("BODY_RECEBIDO:", JSON.stringify({
+    customer_name:  body.customer_name,
+    customer_phone: body.customer_phone,
+    order_type:     body.order_type,
+    payment:        body.payment,
+    address_json:   body.address_json,
+    items_count:    Array.isArray(body.items) ? body.items.length : "não é array",
+    items:          body.items,
+  }));
+
+  try {
+    const {
+      customer_name,
+      customer_phone,
+      items,
+      order_type,
+      payment,
+      neighborhood,
+      address_json,
+      notes,
+    } = body as {
+      customer_name?: unknown; customer_phone?: unknown;
+      items?: unknown; order_type?: unknown; payment?: unknown;
+      neighborhood?: unknown; address_json?: Record<string, unknown>;
+      notes?: unknown;
+    };
+
+    // ── 1. Cliente ────────────────────────────────────────────────
     if (!customer_name || typeof customer_name !== "string" || customer_name.trim().length < 2) {
       return badRequest("Nome do cliente é obrigatório (mínimo 2 caracteres).");
     }
-
     if (!customer_phone || typeof customer_phone !== "string") {
       return badRequest("Telefone do cliente é obrigatório.");
     }
-
     const phoneDigits = customer_phone.replace(/\D/g, "");
     if (phoneDigits.length < 10 || phoneDigits.length > 11) {
       return badRequest("Telefone inválido. Informe DDD + número (10 ou 11 dígitos).");
     }
 
-    // ── 2. Itens — existência e estrutura básica ───────────────────
+    // ── 2. Itens ──────────────────────────────────────────────────
     if (!Array.isArray(items) || items.length === 0) {
       return badRequest("O pedido deve conter ao menos um item.");
     }
 
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const itemsArr = items as any[];
 
+    for (let i = 0; i < itemsArr.length; i++) {
+      const item = itemsArr[i];
       if (!item.name || typeof item.name !== "string" || !item.name.trim()) {
-        return badRequest(`Item ${i + 1}: nome do produto é obrigatório.`);
+        return badRequest(`Item ${i + 1}: nome obrigatório.`);
       }
-
-      // productId é opcional — quando presente deve ser inteiro ≥ 1
       if (item.productId !== undefined && item.productId !== null) {
         const pid = Number(item.productId);
         if (!Number.isInteger(pid) || pid < 1) {
           return badRequest(`Item ${i + 1} ("${item.name}"): productId inválido.`);
         }
       }
-
       if (!Number.isInteger(item.qty) || item.qty < 1) {
-        return badRequest(`Item ${i + 1} ("${item.name ?? "?"}"): quantidade inválida.`);
+        return badRequest(`Item ${i + 1} ("${item.name}"): quantidade inválida.`);
       }
     }
 
     // ── 3. Tipo de pedido ─────────────────────────────────────────
-    if (!(VALID_ORDER_TYPES as readonly string[]).includes(order_type)) {
-      return badRequest(
-        `Tipo de pedido inválido. Valores aceitos: ${VALID_ORDER_TYPES.join(", ")}.`
-      );
+    if (!(VALID_ORDER_TYPES as readonly string[]).includes(order_type as string)) {
+      return badRequest(`Tipo inválido. Aceitos: ${VALID_ORDER_TYPES.join(", ")}.`);
     }
 
-    // ── 4. Forma de pagamento ─────────────────────────────────────
-    if (!payment || typeof payment !== "string" || payment.trim().length === 0) {
+    // ── 4. Pagamento ──────────────────────────────────────────────
+    if (!payment || typeof payment !== "string" || !payment.trim()) {
       return badRequest("Forma de pagamento é obrigatória.");
     }
-
     if (!(VALID_PAYMENTS as readonly string[]).includes(payment.trim())) {
-      return badRequest(
-        `Forma de pagamento inválida. Valores aceitos: ${VALID_PAYMENTS.join(", ")}.`
-      );
+      return badRequest(`Pagamento inválido. Aceitos: ${VALID_PAYMENTS.join(", ")}.`);
     }
 
-    // ── 5. Endereço para delivery — texto OU localização GPS ──────
+    // ── 5. Endereço (delivery) — texto OU GPS ────────────────────
     if (order_type === "delivery") {
-      const endereco = address_json?.endereco?.trim() ?? "";
-      const hasGps = address_json?.lat != null && address_json?.lng != null;
+      const endereco = String(address_json?.endereco ?? "").trim();
+      const hasGps   = address_json?.lat != null && address_json?.lng != null;
       if (!hasGps && endereco.length < 5) {
-        return badRequest(
-          "Informe o endereço de entrega ou envie sua localização GPS."
-        );
+        return badRequest("Informe o endereço ou envie sua localização GPS.");
       }
     }
 
-    // ── 6. Buscar produtos no banco (apenas os que têm productId) ──
-    const idsToLookup: number[] = items
-      .map((item: { productId?: number }) => Number(item.productId))
-      .filter((id: number) => Number.isInteger(id) && id >= 1);
+    // ── 6. Lookup de produtos no banco ────────────────────────────
+    const idsToLookup: number[] = itemsArr
+      .map((item) => Number(item.productId))
+      .filter((id) => Number.isInteger(id) && id >= 1);
+
+    // eslint-disable-next-line no-console
+    console.log("STEP6_IDS_LOOKUP:", idsToLookup);
 
     const productMap = new Map<number, { id: number; name: string; price: number }>();
 
     if (idsToLookup.length > 0) {
+      // eslint-disable-next-line no-console
+      console.log("STEP6_DB_QUERY: product.findMany restaurantId=1 isActive=true ids=", idsToLookup);
       const dbProducts = await prisma.product.findMany({
         where: { id: { in: idsToLookup }, restaurantId: 1, isActive: true },
         select: { id: true, name: true, price: true },
       });
+      // eslint-disable-next-line no-console
+      console.log("STEP6_DB_RESULT:", dbProducts);
       dbProducts.forEach((p) => productMap.set(p.id, { ...p, price: Number(p.price) }));
     }
 
-    // ── 7. Recalcular preços no backend ───────────────────────────
-    // Se productId encontrado no banco → usa preço do banco (seguro).
-    // Se não encontrado → aceita preço enviado pelo cliente (modo fallback
-    // para itens do cardápio hardcoded que não existem no banco ainda).
+    // ── 7. Recalcular preços ──────────────────────────────────────
     let calculatedSubtotal = 0;
+    const orderItemsData = itemsArr.map((item) => {
+      const dbProduct  = item.productId ? productMap.get(item.productId) : undefined;
+      const unitPrice  = dbProduct
+        ? dbProduct.price
+        : (typeof item.price === "number" && item.price > 0 ? item.price : 0);
+      const productName = dbProduct ? dbProduct.name : String(item.name).trim();
+      calculatedSubtotal = Math.round((calculatedSubtotal + unitPrice * item.qty) * 100) / 100;
+      return {
+        productId: dbProduct?.id ?? null,
+        name:      productName,
+        price:     unitPrice,
+        qty:       item.qty,
+        obs:       item.obs ? String(item.obs).trim() : null,
+      };
+    });
 
-    const orderItemsData = items.map(
-      (item: { productId?: number; name: string; price?: number; qty: number; obs?: string }) => {
-        const dbProduct = item.productId ? productMap.get(item.productId) : undefined;
-        const unitPrice = dbProduct
-          ? dbProduct.price
-          : (typeof item.price === "number" && item.price > 0 ? item.price : 0);
-        const productName = dbProduct ? dbProduct.name : item.name.trim();
+    const deliveryFee      = 0;
+    const calculatedTotal  = Math.round((calculatedSubtotal + deliveryFee) * 100) / 100;
 
-        calculatedSubtotal = Math.round((calculatedSubtotal + unitPrice * item.qty) * 100) / 100;
-        return {
-          productId: dbProduct?.id ?? null,  // nullable — OK conforme schema
-          name: productName,
-          price: unitPrice,
-          qty: item.qty,
-          obs: item.obs?.trim() || null,
-        };
-      }
-    );
+    // eslint-disable-next-line no-console
+    console.log("STEP7_ORDER_ITEMS:", orderItemsData, "subtotal:", calculatedSubtotal);
 
-    const deliveryFee = 0; // TODO: buscar taxa de entrega configurada por restaurante
-    const calculatedTotal = Math.round((calculatedSubtotal + deliveryFee) * 100) / 100;
-
-    // ── 8. Upsert do Cliente (opcional — não bloqueia o pedido) ───
-    // Se a tabela Customer ainda não existe no banco de produção, loga
-    // o aviso mas continua criando o pedido normalmente.
+    // ── 8. Upsert do Cliente (não-bloqueante) ─────────────────────
+    // eslint-disable-next-line no-console
+    console.log("STEP8_CUSTOMER_UPSERT phone:", phoneDigits);
     try {
       await prisma.customer.upsert({
-        where: { phone: phoneDigits },
+        where:  { phone: phoneDigits },
         create: {
-          phone: phoneDigits,
-          name: customer_name.trim(),
-          address: address_json?.endereco?.trim() || null,
-          complement: address_json?.complemento?.trim() || null,
+          phone:      phoneDigits,
+          name:       customer_name.trim(),
+          address:    String(address_json?.endereco ?? "").trim() || null,
+          complement: String(address_json?.complemento ?? "").trim() || null,
         },
         update: {
           name: customer_name.trim(),
-          ...(address_json?.endereco ? { address: address_json.endereco.trim() } : {}),
-          ...(address_json?.complemento ? { complement: address_json.complemento.trim() } : {}),
+          ...(address_json?.endereco    ? { address:    String(address_json.endereco).trim()    } : {}),
+          ...(address_json?.complemento ? { complement: String(address_json.complemento).trim() } : {}),
         },
       });
+      // eslint-disable-next-line no-console
+      console.log("STEP8_CUSTOMER_OK");
     } catch (customerErr) {
-      console.warn("Customer upsert skipped (table may not exist):", customerErr);
+      const ce = extractError(customerErr);
+      // eslint-disable-next-line no-console
+      console.warn("STEP8_CUSTOMER_SKIP:", ce.message, "code:", ce.code, "meta:", ce.meta);
     }
 
     // ── 9. Criar Order + OrderItems ───────────────────────────────
+    // eslint-disable-next-line no-console
+    console.log("STEP9_ORDER_CREATE start, restaurantId=1");
+
+    const orderData = {
+      restaurantId:  1,
+      customerName:  customer_name.trim(),
+      customerPhone: phoneDigits,
+      orderType:     order_type as OrderType,
+      payment:       (payment as string).trim() as Payment,
+      subtotal:      calculatedSubtotal,
+      deliveryFee,
+      total:         calculatedTotal,
+      neighborhood:  neighborhood ? String(neighborhood).trim() || null : null,
+      addressJson:   address_json ? JSON.stringify(address_json) : null,
+      status:        "RECEIVED",
+      notes:         notes ? String(notes).trim() || null : null,
+      items:         { create: orderItemsData },
+    };
+
+    // eslint-disable-next-line no-console
+    console.log("STEP9_ORDER_DATA (sem items):", { ...orderData, items: `[${orderItemsData.length} items]` });
+
     const order = await prisma.order.create({
-      data: {
-        restaurantId: 1,
-        customerName: customer_name.trim(),
-        customerPhone: phoneDigits,
-        orderType: order_type as OrderType,
-        payment: payment.trim() as Payment,
-        subtotal: calculatedSubtotal,
-        deliveryFee,
-        total: calculatedTotal,
-        neighborhood: neighborhood?.trim() || null,
-        addressJson: address_json ? JSON.stringify(address_json) : null,
-        status: "RECEIVED",
-        notes: notes?.trim() || null,
-        items: { create: orderItemsData },
-      },
+      data:    orderData,
       include: { items: true },
     });
 
+    // eslint-disable-next-line no-console
+    console.log("STEP9_ORDER_CREATED id:", order.id);
+    // eslint-disable-next-line no-console
+    console.log("=== POST /api/orders SUCCESS ===");
+
     return NextResponse.json(serializeOrder(order), { status: 201 });
+
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("Orders POST error:", msg, err);
+    const e = extractError(err);
+
+    // eslint-disable-next-line no-console
+    console.error("=== POST /api/orders ERROR ===");
+    // eslint-disable-next-line no-console
+    console.error("message:", e.message);
+    // eslint-disable-next-line no-console
+    console.error("code:", e.code);
+    // eslint-disable-next-line no-console
+    console.error("meta:", JSON.stringify(e.meta));
+    // eslint-disable-next-line no-console
+    console.error("stack:", e.stack);
+    // eslint-disable-next-line no-console
+    console.error("body_snapshot:", JSON.stringify(body));
+
     return NextResponse.json(
-      { error: "Erro interno ao criar pedido.", detail: msg },
+      {
+        error:   "Erro interno ao criar pedido.",
+        details: e.message,
+        code:    e.code,
+        meta:    e.meta,
+      },
       { status: 500 }
     );
   }
@@ -206,19 +285,19 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   try {
     const orders = await prisma.order.findMany({
-      where: { restaurantId: 1 },
+      where:   { restaurantId: 1 },
       include: { items: true },
       orderBy: { createdAt: "desc" },
-      take: 100,
+      take:    100,
     });
 
     return NextResponse.json(
       orders.map((o) => ({
         ...o,
-        subtotal: Number(o.subtotal),
+        subtotal:    Number(o.subtotal),
         deliveryFee: Number(o.deliveryFee),
-        total: Number(o.total),
-        items: o.items.map((i) => ({ ...i, price: Number(i.price) })),
+        total:       Number(o.total),
+        items:       o.items.map((i) => ({ ...i, price: Number(i.price) })),
       }))
     );
   } catch (err) {

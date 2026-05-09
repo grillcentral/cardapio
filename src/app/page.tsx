@@ -390,7 +390,12 @@ function CartSidebar({ cart, onUpdate, onRemove, onClear, mobileOpen, onCloseMob
         }),
       });
       const order = await res.json();
-      if (!res.ok) throw new Error(order.error || "api_error");
+      if (!res.ok) {
+        const detail = [order.error, order.details, order.code].filter(Boolean).join(" | ");
+        // eslint-disable-next-line no-console
+        console.error("API_ORDER_ERROR", detail, order);
+        throw new Error(detail || "api_error");
+      }
       let m = `🛒 *Pedido #${order.id} — Grill Central*\n\n`;
       m += `👤 *Cliente:* ${user.name}\n`;
       m += `📱 *Telefone:* ${user.phone}\n\n`;
@@ -403,9 +408,9 @@ function CartSidebar({ cart, onUpdate, onRemove, onClear, mobileOpen, onCloseMob
       // eslint-disable-next-line no-console
       console.log("FLUXO_PEDIDO_USADO", "whatsapp-direto-carrinho-sucesso");
       openRestaurantWhatsApp(m);
-    } catch {
+    } catch (err) {
       // eslint-disable-next-line no-console
-      console.log("FLUXO_PEDIDO_USADO", "whatsapp-direto-carrinho-fallback");
+      console.log("FLUXO_PEDIDO_USADO", "whatsapp-direto-carrinho-fallback", String(err));
       openRestaurantWhatsApp(waMsg());
     } finally {
       setWaLoading(false);
@@ -671,8 +676,13 @@ export default function App() {
           payment: "A confirmar",
         }),
       });
-      if (!res.ok) throw new Error("api_error");
       const order = await res.json();
+      if (!res.ok) {
+        const detail = [order.error, order.details, order.code].filter(Boolean).join(" | ");
+        // eslint-disable-next-line no-console
+        console.error("API_ORDER_ERROR (pedir-agora)", detail, order);
+        throw new Error(detail || "api_error");
+      }
       let m = `🛒 *Pedido #${order.id} — Grill Central*\n\n`;
       m += `👤 *Cliente:* ${user.name}\n`;
       m += `📱 *Telefone:* ${user.phone}\n\n`;

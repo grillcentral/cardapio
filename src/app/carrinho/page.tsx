@@ -135,7 +135,8 @@ function CheckoutModal({ cart, subtotal, whatsapp, onClose, onSuccess }: {
       });
       const order = await res.json();
       if (!res.ok) {
-        setErr(order.error || "Erro ao registrar pedido. Tente novamente.");
+        const detail = order.details ? `\n(${order.details})` : order.code ? `\n(code: ${order.code})` : "";
+        setErr((order.error || "Erro ao registrar pedido.") + detail);
         return;
       }
 
