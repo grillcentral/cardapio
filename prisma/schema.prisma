@@ -64,6 +64,7 @@ model Product {
   description  String?
   price        Float
   imageUrl     String?
+  ingredients  String?    // JSON array: '["queijo","bacon","alface"]'
   isActive     Boolean    @default(true)
   isFeatured   Boolean    @default(false)
   sortOrder    Int        @default(0)

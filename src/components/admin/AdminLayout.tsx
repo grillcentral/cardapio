@@ -144,6 +144,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: 12, paddingTop: 12 }}>
             <a
+              href="/cozinha"
+              target="_blank"
+              style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+                borderRadius: 10, textDecoration: "none", fontSize: 13, fontWeight: 600,
+                background: "rgba(232,131,58,0.1)",
+                color: "#e8833a",
+                border: "1px solid rgba(232,131,58,0.25)",
+                marginBottom: 4,
+                borderLeft: "3px solid #e8833a",
+              }}
+            >
+              <span>🍳</span> Modo Cozinha
+            </a>
+            <a
               href="/"
               target="_blank"
               style={{

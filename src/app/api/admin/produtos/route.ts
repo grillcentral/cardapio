@@ -52,11 +52,16 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, description, price, categoryId, imageUrl, isActive, isFeatured, sortOrder } = body;
+    const { name, description, price, categoryId, imageUrl, ingredients, isActive, isFeatured, sortOrder } = body;
 
     if (!name || !price || !categoryId) {
       return NextResponse.json({ error: "Nome, preço e categoria são obrigatórios." }, { status: 400 });
     }
+
+    // ingredients: vem como string[] do form, salva como JSON
+    const ingredientsJson = Array.isArray(ingredients) && ingredients.length > 0
+      ? JSON.stringify(ingredients.map(String).filter(Boolean))
+      : null;
 
     const product = await prisma.product.create({
       data: {
@@ -66,6 +71,7 @@ export async function POST(req: NextRequest) {
         description: description ? String(description) : null,
         price: Number(price),
         imageUrl: imageUrl ? String(imageUrl) : null,
+        ingredients: ingredientsJson,
         isActive: isActive !== false,
         isFeatured: isFeatured === true,
         sortOrder: Number(sortOrder) || 0,

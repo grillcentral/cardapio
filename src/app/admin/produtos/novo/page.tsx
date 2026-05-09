@@ -18,6 +18,7 @@ export default function NovoProdutoPage() {
   const [form, setForm] = useState({
     name: "",
     description: "",
+    ingredients: "", // CSV: "queijo, bacon, alface"
     price: "",
     categoryId: "",
     imageUrl: "",
@@ -75,12 +76,16 @@ export default function NovoProdutoPage() {
 
     setSaving(true);
     try {
+      const ingredientsArr = form.ingredients
+        .split(",").map((s) => s.trim()).filter(Boolean);
+
       const res = await fetch("/api/admin/produtos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name.trim(),
           description: form.description.trim() || null,
+          ingredients: ingredientsArr.length > 0 ? ingredientsArr : [],
           price: Number(form.price),
           categoryId: Number(form.categoryId),
           imageUrl: form.imageUrl || null,
@@ -140,6 +145,19 @@ export default function NovoProdutoPage() {
                 rows={3}
                 style={{ ...inp, resize: "vertical" }}
               />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={label}>Ingredientes removíveis (separados por vírgula)</label>
+              <input
+                value={form.ingredients}
+                onChange={(e) => set("ingredients", e.target.value)}
+                placeholder="Ex: queijo, bacon, alface, tomate"
+                style={inp}
+              />
+              <div style={{ fontSize: 11, color: "#3a3d48", marginTop: 4 }}>
+                O cliente verá botões "Sem queijo", "Sem bacon"... para remover antes de pedir.
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { openRestaurantWhatsApp } from "@/lib/whatsapp";
 
@@ -67,6 +67,8 @@ function CheckoutModal({ cart, subtotal, whatsapp, onClose, onSuccess }: {
   const [geoStatus, setGeoStatus] = useState<"idle" | "loading" | "ok" | "err">("idle");
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+  /** Ref-guard: impede duplo envio mesmo antes do React processar o disabled */
+  const isSubmitting = useRef(false);
 
   useEffect(() => {
     try {
@@ -99,6 +101,9 @@ function CheckoutModal({ cart, subtotal, whatsapp, onClose, onSuccess }: {
   };
 
   const handleConfirm = async () => {
+    // Guard imediato via ref — bloqueia antes do React atualizar o disabled
+    if (isSubmitting.current) return;
+
     const digits = phone.replace(/\D/g, "");
     if (!name.trim()) { setErr("Digite seu nome."); return; }
     if (digits.length < 10) { setErr("Digite um telefone válido com DDD."); return; }
@@ -106,6 +111,9 @@ function CheckoutModal({ cart, subtotal, whatsapp, onClose, onSuccess }: {
     if (orderType === "delivery" && !address.trim() && !(lat && lng)) {
       setErr("Informe seu endereço ou capture sua localização."); return;
     }
+
+    // Validações passaram — trava ANTES do await
+    isSubmitting.current = true;
 
     const savedUser = {
       name: name.trim(), phone: digits,
@@ -172,6 +180,7 @@ function CheckoutModal({ cart, subtotal, whatsapp, onClose, onSuccess }: {
       setErr("Erro ao registrar pedido. Tente novamente.");
     } finally {
       setLoading(false);
+      isSubmitting.current = false; // libera para nova tentativa
     }
   };
 
@@ -316,9 +325,12 @@ export default function Carrinho() {
   };
 
   const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false); // guard ref para sendDirect
 
   const sendDirect = async (user: { name: string; phone: string; address?: string; complement?: string; lat?: number; lng?: number }) => {
+    if (sendingRef.current) return; // bloqueia clique duplo
     const orderType: "delivery" | "retirada" = "delivery";
+    sendingRef.current = true;
     setSending(true);
     try {
       const res = await fetch("/api/orders", {
@@ -362,6 +374,7 @@ export default function Carrinho() {
       setShowCheckout(true);
     } finally {
       setSending(false);
+      sendingRef.current = false; // libera
     }
   };
 

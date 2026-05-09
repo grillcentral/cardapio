@@ -4,8 +4,8 @@ import { verifyToken } from "@/lib/auth";
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Only protect /admin routes
-  if (!pathname.startsWith("/admin")) {
+  // Only protect /admin and /cozinha routes
+  if (!pathname.startsWith("/admin") && !pathname.startsWith("/cozinha")) {
     return NextResponse.next();
   }
 
@@ -33,5 +33,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/cozinha/:path*", "/cozinha"],
 };

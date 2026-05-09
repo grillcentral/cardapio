@@ -17,6 +17,8 @@ interface MenuItem {
   badge?: string;
   /** ID real do banco de dados. Undefined quando vem do menu hardcoded (fallback). */
   productId?: number;
+  /** Ingredientes removíveis. Undefined/[] = sem checkboxes no modal. */
+  ingredients?: string[];
 }
 
 interface MenuCategory {
@@ -303,6 +305,17 @@ function AuthModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: Use
 function ItemModal({ item, onClose, onAdd }: { item: MenuItem; onClose: () => void; onAdd: (item: MenuItem, qty: number, obs: string) => void }) {
   const [qty, setQty] = useState(1);
   const [obs, setObs] = useState("");
+  const [removed, setRemoved] = useState<Set<string>>(new Set());
+
+  const toggleRemove = (ing: string) =>
+    setRemoved((prev) => { const s = new Set(prev); s.has(ing) ? s.delete(ing) : s.add(ing); return s; });
+
+  const buildObs = () => {
+    const parts: string[] = [];
+    if (removed.size > 0) parts.push("Sem " + [...removed].join(", sem "));
+    if (obs.trim()) parts.push(obs.trim());
+    return parts.join(" | ");
+  };
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -311,10 +324,13 @@ function ItemModal({ item, onClose, onAdd }: { item: MenuItem; onClose: () => vo
     return () => { window.removeEventListener("keydown", h); document.body.style.overflow = ""; };
   }, [onClose]);
 
+  const hasIngredients = item.ingredients && item.ingredients.length > 0;
+
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, backdropFilter: "blur(6px)" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#111420", borderRadius: 18, width: "100%", maxWidth: 460, border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 32px 80px rgba(0,0,0,0.7)", overflow: "hidden" }}>
-        <div style={{ height: 210, background: "#0b0d12", position: "relative", overflow: "hidden" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#111420", borderRadius: 18, width: "100%", maxWidth: 480, border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 32px 80px rgba(0,0,0,0.7)", overflow: "hidden", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+        {/* Image */}
+        <div style={{ height: 190, background: "#0b0d12", position: "relative", overflow: "hidden", flexShrink: 0 }}>
           {item.img
             ? <img src={item.img} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
             : <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 72, opacity: 0.3 }}>🍽️</div>
@@ -323,18 +339,69 @@ function ItemModal({ item, onClose, onAdd }: { item: MenuItem; onClose: () => vo
           {item.badge && <div style={{ position: "absolute", top: 12, right: 44, background: item.badge === "Noite" ? "rgba(123,142,232,0.9)" : "rgba(232,168,76,0.9)", color: "#fff", fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 20 }}>{item.badge === "Noite" ? "🌙" : "☀️"} {item.badge}</div>}
           <button onClick={onClose} style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.6)", border: "none", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: "#fff", fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
         </div>
-        <div style={{ padding: "20px 22px 22px" }}>
+
+        {/* Scrollable body */}
+        <div style={{ padding: "18px 22px 22px", overflowY: "auto", flex: 1 }}>
           <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, color: "#f0ede6", marginBottom: 4 }}>{item.name}</div>
           {item.desc && <div style={{ fontSize: 12, color: "#9e9a90", marginBottom: 10, lineHeight: 1.5 }}>{item.desc}</div>}
-          <div style={{ fontSize: 24, fontWeight: 700, color: "#c9a84c", marginBottom: 16 }}>{fmt(item.price)}</div>
-          <textarea value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Observações (ex: sem cebola, bem passado...)" style={{ width: "100%", height: 60, background: "#0b0d12", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 8, color: "#f0ede6", padding: "9px 12px", resize: "none", fontFamily: "DM Sans,sans-serif", fontSize: 13, marginBottom: 14, outline: "none" }} />
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#c9a84c", marginBottom: 14 }}>{fmt(item.price)}</div>
+
+          {/* Ingredientes removíveis */}
+          {hasIngredients && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#5a5650", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+                Remover ingredientes
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {item.ingredients!.map((ing) => {
+                  const on = removed.has(ing);
+                  return (
+                    <button
+                      key={ing}
+                      type="button"
+                      onClick={() => toggleRemove(ing)}
+                      style={{
+                        padding: "5px 11px", borderRadius: 20, fontSize: 12, fontWeight: on ? 700 : 400,
+                        background: on ? "rgba(232,64,64,0.15)" : "rgba(255,255,255,0.05)",
+                        color: on ? "#e84040" : "#9e9a90",
+                        border: `1px solid ${on ? "rgba(232,64,64,0.4)" : "rgba(255,255,255,0.1)"}`,
+                        cursor: "pointer", fontFamily: "DM Sans,sans-serif",
+                        transition: "all 0.15s",
+                        textDecoration: on ? "line-through" : "none",
+                      }}
+                    >
+                      {on ? "✕ " : ""}{ing}
+                    </button>
+                  );
+                })}
+              </div>
+              {removed.size > 0 && (
+                <div style={{ fontSize: 11, color: "#e84040", marginTop: 6, fontStyle: "italic" }}>
+                  Sem: {[...removed].join(", ")}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Observações livres */}
+          <textarea
+            value={obs}
+            onChange={(e) => setObs(e.target.value)}
+            placeholder="Observações adicionais (ex: bem passado, sem molho...)"
+            style={{ width: "100%", height: 54, background: "#0b0d12", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 8, color: "#f0ede6", padding: "9px 12px", resize: "none", fontFamily: "DM Sans,sans-serif", fontSize: 13, marginBottom: 14, outline: "none" }}
+          />
+
+          {/* Qty + Adicionar */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", background: "#0b0d12", borderRadius: 8, border: "1px solid rgba(255,255,255,0.09)", overflow: "hidden" }}>
               <button onClick={() => setQty((q) => Math.max(1, q - 1))} style={{ width: 38, height: 40, background: "none", border: "none", cursor: "pointer", color: "#9e9a90", fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
               <span style={{ width: 28, textAlign: "center", fontWeight: 600, fontSize: 15 }}>{qty}</span>
               <button onClick={() => setQty((q) => q + 1)} style={{ width: 38, height: 40, background: "none", border: "none", cursor: "pointer", color: "#c9a84c", fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
             </div>
-            <button onClick={() => { onAdd(item, qty, obs); onClose(); }} style={{ flex: 1, height: 40, background: "linear-gradient(135deg,#c9a84c,#e4c97e)", border: "none", borderRadius: 8, cursor: "pointer", color: "#0b0d12", fontWeight: 700, fontSize: 14, fontFamily: "DM Sans,sans-serif" }}>
+            <button
+              onClick={() => { onAdd(item, qty, buildObs()); onClose(); }}
+              style={{ flex: 1, height: 40, background: "linear-gradient(135deg,#c9a84c,#e4c97e)", border: "none", borderRadius: 8, cursor: "pointer", color: "#0b0d12", fontWeight: 700, fontSize: 14, fontFamily: "DM Sans,sans-serif" }}
+            >
               Adicionar · {fmt(item.price * qty)}
             </button>
           </div>
@@ -367,12 +434,15 @@ function CartSidebar({ cart, onUpdate, onRemove, onClear, mobileOpen, onCloseMob
 
   const [waLoading, setWaLoading] = useState(false);
   const [showQuickModal, setShowQuickModal] = useState(false);
+  const submittingRef = useRef(false); // guard: impede duplo envio via WhatsApp direto
 
   const getQuickUser = () => {
     try { return JSON.parse(localStorage.getItem("grillcentral_quick_user") || "null") as QuickUser | null; } catch { return null; }
   };
 
   const doPostAndOpenWA = async (user: QuickUser) => {
+    if (submittingRef.current) return; // guard imediato — bloqueia antes do disabled
+    submittingRef.current = true;
     setWaLoading(true);
     try {
       const res = await fetch("/api/orders", {
@@ -414,6 +484,7 @@ function CartSidebar({ cart, onUpdate, onRemove, onClear, mobileOpen, onCloseMob
       openRestaurantWhatsApp(waMsg());
     } finally {
       setWaLoading(false);
+      submittingRef.current = false; // libera
     }
   };
 
@@ -588,7 +659,7 @@ export default function App() {
           const mapped: MenuCategory[] = data.categories.map((cat: {
             id: number; name: string; emoji: string | null; periodTag: string | null;
             description?: string;
-            products: Array<{ id: number; name: string; description?: string | null; price: number; imageUrl?: string | null; isFeatured?: boolean }>;
+            products: Array<{ id: number; name: string; description?: string | null; price: number; imageUrl?: string | null; ingredients?: string[] | null; isFeatured?: boolean }>;
           }) => ({
             category: cat.name,
             id: String(cat.id),
@@ -600,6 +671,7 @@ export default function App() {
               desc: p.description,
               price: p.price,
               img: p.imageUrl,
+              ingredients: Array.isArray(p.ingredients) && p.ingredients.length > 0 ? p.ingredients : undefined,
               destaque: p.isFeatured,
               productId: p.id,
             })),
@@ -653,12 +725,15 @@ export default function App() {
   const [quickOrderingName, setQuickOrderingName] = useState<string | null>(null);
   const [showQuickOrderModal, setShowQuickOrderModal] = useState(false);
   const [pendingQuickItem, setPendingQuickItem] = useState<MenuItem | null>(null);
+  const quickOrderRef = useRef(false); // guard: impede duplo disparo do "Pedir agora"
 
   const getQuickUserApp = () => {
     try { return JSON.parse(localStorage.getItem("grillcentral_quick_user") || "null") as QuickUser | null; } catch { return null; }
   };
 
   const doItemPost = async (item: MenuItem, user: QuickUser) => {
+    if (quickOrderRef.current) return; // guard imediato
+    quickOrderRef.current = true;
     setQuickOrderingName(item.name);
     const itemTotal = item.price;
     try {
@@ -706,6 +781,7 @@ export default function App() {
       openRestaurantWhatsApp(m);
     } finally {
       setQuickOrderingName(null);
+      quickOrderRef.current = false; // libera
     }
   };
 

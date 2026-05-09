@@ -75,43 +75,104 @@ export function printOrder(order: PrintOrderData): void {
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pedido #${order.id}</title>
 <style>
+  /* ── Reset ── */
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
+
+  /* ── Tamanho da página — DEVE ficar no nível raiz, não dentro de @media ── */
+  @page {
+    size: 80mm auto;
+    margin: 0mm;
+  }
+
+  /* ── Corpo base: sempre 80mm ── */
+  html, body {
+    width: 80mm;
+    max-width: 80mm;
     font-family: 'Courier New', Courier, monospace;
-    font-size: 12px;
-    line-height: 1.5;
+    font-size: 11px;
+    line-height: 1.3;
     color: #000;
     background: #fff;
-    padding: 6mm 5mm;
-    width: 80mm;
   }
+
+  body {
+    padding: 3mm 3mm 5mm;
+  }
+
+  /* ── Preview em tela: receipt centralizado num fundo cinza ── */
+  @media screen {
+    html {
+      background: #ccc;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 10px;
+    }
+    body {
+      background: #fff;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+      border-radius: 2px;
+      min-height: 40px;
+    }
+  }
+
+  /* ── Impressão: garante 80mm, sem margens, sem sombra ── */
+  @media print {
+    html, body {
+      width: 80mm !important;
+      max-width: 80mm !important;
+      margin: 0 !important;
+      padding: 2mm 3mm 4mm !important;
+      background: #fff !important;
+      box-shadow: none !important;
+    }
+  }
+
+  /* ── Elementos ── */
   .center { text-align: center; }
-  .brand  { font-size: 18px; font-weight: bold; letter-spacing: 1px; }
-  .sub    { font-size: 10px; color: #444; margin-top: 1px; }
-  .divider{ border: none; border-top: 1px dashed #000; margin: 5px 0; }
-  .row    { display: flex; justify-content: space-between; margin: 1px 0; }
-  .bold   { font-weight: bold; }
-  .section-title { font-weight: bold; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 3px; }
+  .brand  { font-size: 15px; font-weight: bold; letter-spacing: 1px; }
+  .sub    { font-size: 9px; color: #555; margin-top: 1px; }
+
+  .divider {
+    border: none;
+    border-top: 1px dashed #000;
+    margin: 3px 0;
+  }
+
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin: 1px 0;
+    gap: 4px;
+  }
+  .row-label { flex-shrink: 0; }
+  .row-value { text-align: right; word-break: break-word; }
+
+  .bold          { font-weight: bold; }
+  .section-title { font-weight: bold; font-size: 10px; letter-spacing: 0.4px; margin-bottom: 2px; }
 
   /* Itens */
-  .item-row   { display: flex; gap: 2px; margin: 2px 0; }
-  .item-qty   { min-width: 22px; flex-shrink: 0; }
-  .item-name  { flex: 1; word-break: break-word; }
-  .item-price { min-width: 62px; text-align: right; flex-shrink: 0; }
-  .obs        { font-size: 11px; margin-left: 24px; font-style: italic; color: #333; }
+  .item-row  { display: flex; gap: 2px; margin: 1px 0; align-items: flex-start; }
+  .item-qty  { min-width: 20px; flex-shrink: 0; font-weight: bold; }
+  .item-name { flex: 1; word-break: break-word; }
+  .item-price{ min-width: 58px; text-align: right; flex-shrink: 0; }
+  .obs       { font-size: 10px; margin-left: 22px; font-style: italic; color: #444; }
 
   /* Total */
-  .total-row  { display: flex; justify-content: space-between;
-                font-weight: bold; font-size: 15px; margin-top: 2px; }
-
-  .footer     { font-size: 10px; color: #555; margin-top: 2px; }
-
-  @page { size: 80mm auto; margin: 0; }
-  @media print {
-    body { width: 100%; padding: 4mm 4mm; }
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    font-size: 13px;
+    margin-top: 1px;
   }
+
+  .footer { font-size: 9px; color: #666; }
 </style>
 </head>
 <body>
@@ -120,47 +181,38 @@ export function printOrder(order: PrintOrderData): void {
   <div class="brand">GRILL CENTRAL</div>
   <div class="sub">Cozinha / Balcão</div>
 </div>
-
 <hr class="divider">
-
 <div class="row">
-  <span class="bold" style="font-size:14px;">PEDIDO #${order.id}</span>
-  <span style="font-size:11px;">${fmtDatetime(order.createdAt)}</span>
+  <span class="bold">PEDIDO #${order.id}</span>
+  <span style="font-size:10px;">${fmtDatetime(order.createdAt)}</span>
 </div>
-
 <hr class="divider">
-
-${order.customerName ? `<div class="row"><span>Cliente</span><span class="bold">${order.customerName}</span></div>` : ""}
-${order.customerPhone ? `<div class="row"><span>Telefone</span><span>${order.customerPhone}</span></div>` : ""}
-<div class="row"><span>Tipo</span><span>${typeLabel}</span></div>
-${address ? `<div class="row" style="align-items:flex-start;"><span style="flex-shrink:0;margin-right:4px;">Endereço</span><span style="text-align:right;word-break:break-word;">${address}</span></div>` : ""}
-<div class="row"><span>Pagamento</span><span>${order.payment}</span></div>
-
+${order.customerName  ? `<div class="row"><span class="row-label">Cliente</span><span class="row-value bold">${order.customerName}</span></div>` : ""}
+${order.customerPhone ? `<div class="row"><span class="row-label">Tel</span><span class="row-value">${order.customerPhone}</span></div>` : ""}
+<div class="row"><span class="row-label">Tipo</span><span class="row-value">${typeLabel}</span></div>
+${address ? `<div class="row"><span class="row-label">End.</span><span class="row-value">${address}</span></div>` : ""}
+<div class="row"><span class="row-label">Pgto</span><span class="row-value">${order.payment}</span></div>
 <hr class="divider">
-
 <div class="section-title">ITENS</div>
 ${rows}
-
 <hr class="divider">
-
 ${deliveryBlock}
 <div class="total-row">
   <span>TOTAL</span>
   <span>${fmtMoney(order.total)}</span>
 </div>
-
-${order.notes ? `<hr class="divider"><div class="section-title">OBS GERAL</div><div>${order.notes}</div>` : ""}
-
+${order.notes ? `<hr class="divider"><div class="section-title">OBS</div><div style="font-size:10px;">${order.notes}</div>` : ""}
 <hr class="divider">
-<div class="center footer">Obrigado pela preferência!</div>
+<div class="center footer">Obrigado pela preferencia!</div>
 
 </body>
 </html>`;
 
+  // 80mm ≈ 302px a 96dpi; 340px dá margem para scroll e sombra no preview
   const win = window.open(
     "",
     "_blank",
-    "width=420,height=650,menubar=no,toolbar=no,location=no,status=no"
+    "width=340,height=600,menubar=no,toolbar=no,location=no,status=no,resizable=yes"
   );
   if (!win) {
     alert("Pop-up bloqueado. Permita pop-ups para este site e tente novamente.");

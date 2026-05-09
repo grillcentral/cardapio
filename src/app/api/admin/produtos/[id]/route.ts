@@ -35,7 +35,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const { id } = await params;
     const body = await req.json();
-    const { name, description, price, categoryId, imageUrl, isActive, isFeatured, sortOrder } = body;
+    const { name, description, price, categoryId, imageUrl, ingredients, isActive, isFeatured, sortOrder } = body;
 
     const existing = await prisma.product.findFirst({
       where: { id: Number(id), restaurantId: 1 },
@@ -45,6 +45,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Produto não encontrado." }, { status: 404 });
     }
 
+    // ingredients: vem como string[] do form, salva como JSON
+    const ingredientsJson = ingredients !== undefined
+      ? (Array.isArray(ingredients) && ingredients.length > 0
+        ? JSON.stringify(ingredients.map(String).filter(Boolean))
+        : null)
+      : undefined;
+
     const updated = await prisma.product.update({
       where: { id: Number(id) },
       data: {
@@ -53,6 +60,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         price: price !== undefined ? Number(price) : undefined,
         categoryId: categoryId !== undefined ? Number(categoryId) : undefined,
         imageUrl: imageUrl !== undefined ? (imageUrl ? String(imageUrl) : null) : undefined,
+        ingredients: ingredientsJson,
         isActive: isActive !== undefined ? Boolean(isActive) : undefined,
         isFeatured: isFeatured !== undefined ? Boolean(isFeatured) : undefined,
         sortOrder: sortOrder !== undefined ? Number(sortOrder) : undefined,
