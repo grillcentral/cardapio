@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { printOrder } from "@/lib/printOrder";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface OrderItem {
@@ -52,6 +53,30 @@ const ORDER_TYPE_LABELS: Record<string, string> = {
 };
 
 const fmt = (n: number) => `R$ ${n.toFixed(2).replace(".", ",")}`;
+
+// ── Novo pedido: toca som via HTMLAudioElement (arquivo em /public/sounds/) ───
+function playNewOrderSound() {
+  try {
+    const audio = new Audio("/sounds/new-order.mp3");
+    audio.volume = 0.7;
+    audio.play().catch(() => {
+      // Fallback Web Audio API caso o arquivo ainda não exista
+      try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = "sine";
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.4, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.6);
+      } catch { /* silencioso */ }
+    });
+  } catch { /* silencioso */ }
+}
 
 function fmtDate(iso: string) {
   const d = new Date(iso);
@@ -187,13 +212,21 @@ function OrderCard({ order, onStatusChange }: {
 
   const nextStatus = STATUS_NEXT[order.status];
 
+  const isReceived = order.status === "RECEIVED";
+
   return (
     <div style={{
-      background: "#111420", borderRadius: 14,
-      border: "1px solid rgba(255,255,255,0.07)",
+      background: isReceived ? "rgba(201,168,76,0.06)" : "#111420",
+      borderRadius: 14,
+      border: isReceived
+        ? "1px solid rgba(201,168,76,0.4)"
+        : "1px solid rgba(255,255,255,0.07)",
       overflow: "hidden",
-      borderLeft: `3px solid ${statusInfo(order.status).color}`,
-      transition: "border-color 0.2s",
+      borderLeft: `4px solid ${statusInfo(order.status).color}`,
+      boxShadow: isReceived
+        ? "0 0 0 1px rgba(201,168,76,0.15), 0 4px 20px rgba(0,0,0,0.5)"
+        : "none",
+      transition: "all 0.2s",
     }}>
       {/* ── Card header ── */}
       <div
@@ -205,7 +238,18 @@ function OrderCard({ order, onStatusChange }: {
       >
         {/* ID + hora */}
         <div style={{ minWidth: 90, flexShrink: 0 }}>
-          <div style={{ fontWeight: 800, color: "#c9a84c", fontSize: 14 }}>#{order.id}</div>
+          <div style={{ fontWeight: 800, color: "#c9a84c", fontSize: 14, display: "flex", alignItems: "center", gap: 6 }}>
+            #{order.id}
+            {isReceived && (
+              <span style={{
+                background: "#e84040", color: "#fff", fontSize: 9, fontWeight: 800,
+                padding: "2px 6px", borderRadius: 10, letterSpacing: "0.05em",
+                animation: "pulseNew 1.4s ease-in-out infinite",
+              }}>
+                NOVO
+              </span>
+            )}
+          </div>
           <div style={{ fontSize: 11, color: "#5a5650", marginTop: 1 }}>{fmtDate(order.createdAt)}</div>
         </div>
 
@@ -237,6 +281,25 @@ function OrderCard({ order, onStatusChange }: {
         {/* Total */}
         <div style={{ fontWeight: 800, fontSize: 16, color: "#c9a84c", flexShrink: 0, minWidth: 80, textAlign: "right" }}>
           {fmt(order.total)}
+        </div>
+
+        {/* Imprimir */}
+        <div onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
+          <button
+            onClick={() => printOrder(order)}
+            title="Imprimir pedido"
+            style={{
+              padding: "5px 10px", fontSize: 12,
+              background: "rgba(255,255,255,0.05)",
+              color: "#9e9a90",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 8, cursor: "pointer",
+              fontFamily: "DM Sans, sans-serif",
+              display: "inline-flex", alignItems: "center", gap: 4,
+            }}
+          >
+            🖨️
+          </button>
         </div>
 
         {/* Status selector */}
@@ -306,7 +369,7 @@ function OrderCard({ order, onStatusChange }: {
             </div>
           )}
 
-          {/* Botão de avanço rápido */}
+          {/* Rodapé: botão avançar */}
           {nextStatus && (
             <div style={{ marginTop: 8, display: "flex", justifyContent: "flex-end" }}>
               <button
@@ -348,6 +411,10 @@ export default function PedidosPage() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Detecção de novos pedidos — compara maior ID já visto
+  const lastKnownMaxIdRef = useRef<number>(0);
+  const isInitialLoadRef = useRef<boolean>(true);
+
   const fetchOrders = useCallback(async (status: string, showLoader = false) => {
     if (showLoader) setLoading(true);
     try {
@@ -371,6 +438,14 @@ export default function PedidosPage() {
       setTotal(data.total ?? filtered.length);
       setStatusCounts(data.statusCounts ?? {});
       setLastRefresh(new Date());
+
+      // Detecta novos pedidos comparando maior ID já visto
+      const maxId = list.reduce((max, o) => Math.max(max, o.id), 0);
+      if (!isInitialLoadRef.current && maxId > lastKnownMaxIdRef.current) {
+        playNewOrderSound();
+      }
+      lastKnownMaxIdRef.current = Math.max(lastKnownMaxIdRef.current, maxId);
+      isInitialLoadRef.current = false;
     } catch {
       // silent
     } finally {
@@ -410,6 +485,16 @@ export default function PedidosPage() {
     + (statusCounts["PREPARING"] ?? 0)
     + (statusCounts["READY"] ?? 0);
 
+  const receivedCount = statusCounts["RECEIVED"] ?? 0;
+
+  // Atualiza título da aba com contagem de pedidos novos
+  useEffect(() => {
+    document.title = receivedCount > 0
+      ? `(${receivedCount}) 🔔 Pedidos — Admin`
+      : "Pedidos — Admin";
+    return () => { document.title = "Pedidos — Admin"; };
+  }, [receivedCount]);
+
   const filterBtns = [
     { key: "active",    label: "Em Aberto",   count: totalActive,                      color: "#c9a84c" },
     { key: "all",       label: "Todos",        count: Object.values(statusCounts).reduce((a, b) => a + b, 0), color: "#9e9a90" },
@@ -418,11 +503,34 @@ export default function PedidosPage() {
 
   return (
     <AdminLayout>
+      <style>{`
+        @keyframes pulseNew {
+          0%,100% { opacity: 1; transform: scale(1); }
+          50%      { opacity: 0.65; transform: scale(1.1); }
+        }
+      `}</style>
       <div style={{ maxWidth: 900 }}>
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 22 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: "#f0ede6", margin: 0 }}>Pedidos</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: "#f0ede6", margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
+              Pedidos
+              {receivedCount > 0 && (
+                <span style={{
+                  background: "#e84040",
+                  color: "#fff",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  padding: "2px 9px",
+                  borderRadius: 20,
+                  letterSpacing: "0.04em",
+                  animation: "pulseNew 1.4s ease-in-out infinite",
+                  boxShadow: "0 0 8px rgba(232,64,64,0.5)",
+                }}>
+                  {receivedCount} novo{receivedCount !== 1 ? "s" : ""}
+                </span>
+              )}
+            </h1>
             <p style={{ color: "#5a5650", fontSize: 12, margin: "4px 0 0" }}>
               Atualizado às {lastRefresh.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
               &nbsp;·&nbsp;auto-refresh 30s
