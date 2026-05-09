@@ -85,13 +85,16 @@ Railway with RAILPACK builder. Build command: `npm ci && npm run db:generate && 
 | `CLAUDE PEGUE AQUI/LancheFlow.json` | Original with `{{PLACEHOLDERS}}` |
 | `CLAUDE PEGUE AQUI/LancheFlow_READY.json` | Placeholders replaced, imported to n8n |
 | `CLAUDE PEGUE AQUI/LancheFlow_V2.json` | Priority 1 applied (real order creation) |
-| `CLAUDE PEGUE AQUI/LancheFlow_V3.json` | Priority 2 applied (real catalog) — **current production** |
+| `CLAUDE PEGUE AQUI/LancheFlow_V3.json` | Priority 2 applied (real catalog) |
+| `CLAUDE PEGUE AQUI/LancheFlow_V3_WORKING.json` | **Immutable snapshot** of V3 (MD5: A7585E9EE146DFFE118BCBC51E827777) |
+| `CLAUDE PEGUE AQUI/LancheFlow_V4_HUMANO_DRAFT.json` | Working copy — human/manual mode |
+| `CLAUDE PEGUE AQUI/LancheFlow_V4_WORKING.json` | **Immutable snapshot** of V4 production (MD5: FD078892E124079A355038C51D3D3FAD) |
 
 ### n8n Workflow
 - **ID**: `S0pDUdOIqPNoozru`
 - **Name**: LancheFlow
 - **Status**: ✅ Active
-- **Current version**: V3
+- **Current version**: V4 (human/manual mode)
 
 ### State machine (cliente.etapa)
 ```
@@ -106,6 +109,27 @@ nova_conversa → aguardando_item → aguardando_complemento
 - Phone normalization: strip DDI 55 prefix if 12–13 digits
 - `MOCK_TO_REAL_ID` mapping (string mock IDs → real integer DB IDs)
 - Payment disambiguation: `"cartão"` alone → asks crédito/débito (state `aguardando_tipo_cartao`)
+
+### Priority 3 — Modo humano/manual ✅ (deployed 2026-05-09)
+Human mode lets a real operator take over a WhatsApp conversation:
+- **Client trigger**: "quero falar com atendente/humano/pessoa/gerente/falar com alguém/quero falar com" → bot replies "Entendido!" and sets `atendimentoHumano=true` + `sessao.estado='humano'`
+- **Blocking**: subsequent client messages silently dropped (`podeResponder=false`) while in human mode
+- **Operator reactivation**: operator sends `fromMe=true` message with `/auto`, `voltar bot`, `reativar atendimento`, or `reativar bot` → `atendimentoHumano=false`
+- **Client reactivation**: client sends "bot", "voltar bot", "reativar atendimento", "reativar bot", "atendimento automático/automatico", `/auto` → same reset
+- **Auto-reset**: 30 min of operator inactivity → `atendimentoHumano=false` automatically
+- **Dual flag**: both `staticData.memoriaClientes[jid].atendimentoHumano` AND `staticData.sessoes[jid].estado='humano'` are set
+- **Routing fix**: `isHumanTrigger` flag in Normalizar forces routing to Processador IA even for first-visit sessions (bypasses Menu Principal)
+- **Logs**: all human mode events logged in `staticData.logsHumano` (last 200 entries)
+
+**Changes in V4 (vs V3):**
+- Normalizar (Change 1): expanded `PALAVRAS_RESET_BOT` list
+- Normalizar (Change 2): `fromMe` block — operator reactivation via `/auto`/`voltar bot` etc.
+- Normalizar (Change 3): `bloqueadoPorHumano` block — logs reactivation events
+- Normalizar (Change 6): `isHumanTrigger` flag detection pre-routing
+- Motor de Estado (Change 7): routing override — `isHumanTrigger` forces `rota='processador'`
+- Processador IA (Change 4): REATIVACAO BOT block at top of code
+- Processador IA (Change 8): `dados.isHumanTrigger` early check (before "quero pedir" regex can fire)
+- Processador IA (Change 5): enhanced human trigger at line ~467 (backup regex check)
 
 ### Priority 2 — Real catalog via API ✅ (deployed 2026-05-09)
 - Fetches `GET /api/menu` with 5-min cache in `staticData.menuCache`

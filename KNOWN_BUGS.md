@@ -48,6 +48,27 @@
 - **Arquivo**: `Processador IA` (jsCode) — bloco `aguardando_confirmacao`
 - **Data**: 2026-05-09
 
+### BUG-013 — Human trigger routing: "atendente" ia para Menu Principal em vez de Processador IA
+- **Problema**: Mensagens com trigger de atendente humano ("quero falar com atendente") de novos visitantes iam para o nó `Menu Principal` (saudação) em vez de `Processador IA` — Change 5 nunca disparava
+- **Causa**: `Motor de Estado` roteia para `menu_principal` quando `sessao.estado === 'inicio' && !temHistorico` (primeira visita). O trigger estava apenas no Processador IA, nunca alcançado
+- **Solução**: (a) Detectar keywords humanas no `Normalizar` e emitir flag `isHumanTrigger=true`; (b) `Motor de Estado` faz override para `rota='processador'` quando `isHumanTrigger` for true
+- **Arquivo**: `Normalizar` (Change 6), `Motor de Estado` (Change 7) — `LancheFlow_V4_WORKING.json`
+- **Data**: 2026-05-09
+
+### BUG-014 — Regex "quero" do handler de pedidos capturava trigger humano antes do bloco dedicado
+- **Problema**: "quero falar com um atendente" acionava o handler `/quero( pedir)?|.../` (que inclui `quero` sem lookahead) antes de chegar na regex de trigger humano, respondendo "Boa! Me diz que eu anoto 😊" em vez de "Entendido!"
+- **Causa**: Ordem de verificação no Processador IA — handler "quero pedir" (linha ~417) vinha antes do trigger humano (linha ~467)
+- **Solução**: Adicionado check `if (dados.isHumanTrigger)` no início do Processador IA (após REATIVACAO block), usando o flag pré-calculado pelo Normalizar — executa antes de qualquer outro handler
+- **Arquivo**: `Processador IA` (Change 8) — `LancheFlow_V4_WORKING.json`
+- **Data**: 2026-05-09
+
+### BUG-015 — Código duplicado no Processador IA (INTENÇÕES FIXAS duplicado + braces órfãos)
+- **Problema**: A seção INTENÇÕES FIXAS (cardápio, quero pedir, horário, etc.) aparecia duas vezes no jsCode do Processador IA. Linha 477 tinha `}   }` (brace extra) causando `SyntaxError: Unexpected token '}'` que derrubava todas as execuções
+- **Causa**: Inserção incorreta do Change 5 na sessão anterior — o bloco de trigger humano foi inserido com braces sobrando, e a seção de intenções não foi deduplcada corretamente
+- **Solução**: Removidas as linhas 478-546 (braces órfãos + cópia duplicada da seção INTENÇÕES FIXAS). Linha 477 corrigida de `}   }` para `}`
+- **Arquivo**: `Processador IA` (jsCode) — `LancheFlow_V4_WORKING.json`
+- **Data**: 2026-05-09
+
 ---
 
 ## 🔴 Abertos
