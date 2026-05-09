@@ -598,14 +598,25 @@ function ListCard({ item, onAdd, onOpen, onQuickOrder, quickOrderingName }: {
         {item.desc && <div style={{ fontSize: 11, color: "#5a5650", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{item.desc}</div>}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
           <div style={{ fontWeight: 700, fontSize: 15, color: "#c9a84c" }}>{fmt(item.price)}</div>
-          <button onClick={(e) => { e.stopPropagation(); onAdd(item, 1, ""); }}
+          <button onClick={(e) => {
+              e.stopPropagation();
+              // Produtos com ingredientes removíveis devem sempre passar pelo ItemModal
+              if (item.ingredients && item.ingredients.length > 0) { onOpen(item); }
+              else { onAdd(item, 1, ""); }
+            }}
             style={{ width: 30, height: 30, borderRadius: 8, background: hov ? "rgba(201,168,76,0.25)" : "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.35)", cursor: "pointer", color: "#c9a84c", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s", flexShrink: 0 }}>
             <PlusIcon s={14} />
           </button>
         </div>
         {onQuickOrder && (
           <button
-            onClick={(e) => { e.stopPropagation(); if (!isOrdering) onQuickOrder(item); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isOrdering) return;
+              // Produtos com ingredientes removíveis abrem ItemModal antes de pedir
+              if (item.ingredients && item.ingredients.length > 0) { onOpen(item); }
+              else { onQuickOrder(item); }
+            }}
             disabled={isOrdering}
             style={{ width: "100%", marginTop: 6, padding: "6px 0", background: isOrdering ? "rgba(232,131,58,0.35)" : "linear-gradient(135deg,#e8833a,#c9a84c)", border: "none", borderRadius: 7, cursor: isOrdering ? "not-allowed" : "pointer", color: "#0b0d12", fontWeight: 700, fontSize: 11, fontFamily: "DM Sans,sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, opacity: isOrdering ? 0.7 : 1, transition: "opacity 0.15s" }}>
             {isOrdering ? "Registrando..." : "⚡ Pedir agora"}
