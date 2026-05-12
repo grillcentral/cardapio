@@ -24,6 +24,10 @@ export async function GET(req: NextRequest) {
         isActive: true,
         autoAcceptOrders: true,
         autoPrintOnAccept: true,
+        deliveryMaxKm: true,
+        deliveryPricePerKm: true,
+        restaurantLat: true,
+        restaurantLng: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -49,7 +53,8 @@ export async function PUT(req: NextRequest) {
 
     const body = await req.json();
     const { name, description, phone, whatsapp, address, logoUrl, bannerUrl,
-            autoAcceptOrders, autoPrintOnAccept } = body;
+            autoAcceptOrders, autoPrintOnAccept,
+            deliveryMaxKm, deliveryPricePerKm, restaurantLat, restaurantLng } = body;
 
     const updated = await prisma.restaurant.update({
       where: { id: 1 },
@@ -63,6 +68,10 @@ export async function PUT(req: NextRequest) {
         bannerUrl: bannerUrl !== undefined ? (bannerUrl || null) : undefined,
         autoAcceptOrders:  autoAcceptOrders  !== undefined ? Boolean(autoAcceptOrders)  : undefined,
         autoPrintOnAccept: autoPrintOnAccept !== undefined ? Boolean(autoPrintOnAccept) : undefined,
+        deliveryMaxKm:     deliveryMaxKm     !== undefined ? Number(deliveryMaxKm)      : undefined,
+        deliveryPricePerKm: deliveryPricePerKm !== undefined ? Number(deliveryPricePerKm) : undefined,
+        restaurantLat: restaurantLat !== undefined ? (restaurantLat === null ? null : Number(restaurantLat)) : undefined,
+        restaurantLng: restaurantLng !== undefined ? (restaurantLng === null ? null : Number(restaurantLng)) : undefined,
       },
     });
 

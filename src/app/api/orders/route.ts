@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { isRestaurantOpen } from "@/lib/isRestaurantOpen";
+import { haversineKm, calcDeliveryFee } from "@/lib/haversine";
 
 // ── Whitelists ────────────────────────────────────────────────────────────────
 const VALID_ORDER_TYPES = ["delivery", "retirada", "whatsapp_direct"] as const;
@@ -187,11 +188,67 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    const deliveryFee      = 0;
+    // ── 7b. Delivery fee (Haversine) ──────────────────────────────
+    let deliveryFee   = 0;
+    let freightStatus = "ok";
+
+    if (order_type === "delivery") {
+      const customerLat = typeof address_json?.lat === "number" ? address_json.lat : null;
+      const customerLng = typeof address_json?.lng === "number" ? address_json.lng : null;
+
+      // Fetch restaurant delivery config (non-blocking)
+      try {
+        const rest = await prisma.restaurant.findUnique({
+          where: { id: 1 },
+          select: { deliveryMaxKm: true, deliveryPricePerKm: true, restaurantLat: true, restaurantLng: true },
+        });
+
+        if (
+          rest &&
+          rest.restaurantLat != null &&
+          rest.restaurantLng != null &&
+          customerLat != null &&
+          customerLng != null
+        ) {
+          const distKm = haversineKm(rest.restaurantLat, rest.restaurantLng, customerLat, customerLng);
+          // eslint-disable-next-line no-console
+          console.log(`STEP7b_HAVERSINE: dist=${distKm.toFixed(2)}km maxKm=${rest.deliveryMaxKm}`);
+
+          if (distKm > rest.deliveryMaxKm) {
+            freightStatus = "blocked";
+            deliveryFee   = 0;
+            // eslint-disable-next-line no-console
+            console.log("STEP7b_FREIGHT: fora do raio → freightStatus=blocked");
+          } else {
+            deliveryFee   = calcDeliveryFee(distKm, rest.deliveryPricePerKm);
+            freightStatus = "ok";
+            // eslint-disable-next-line no-console
+            console.log(`STEP7b_FREIGHT: R$${deliveryFee} → freightStatus=ok`);
+          }
+        } else if (customerLat == null || customerLng == null) {
+          freightStatus = "pending";
+          deliveryFee   = 0;
+          // eslint-disable-next-line no-console
+          console.log("STEP7b_FREIGHT: sem GPS do cliente → freightStatus=pending");
+        } else {
+          // Restaurant has no GPS configured
+          freightStatus = "pending";
+          deliveryFee   = 0;
+          // eslint-disable-next-line no-console
+          console.log("STEP7b_FREIGHT: restaurante sem GPS → freightStatus=pending");
+        }
+      } catch (freightErr) {
+        freightStatus = "pending";
+        deliveryFee   = 0;
+        // eslint-disable-next-line no-console
+        console.warn("STEP7b_FREIGHT_ERROR:", freightErr);
+      }
+    }
+
     const calculatedTotal  = Math.round((calculatedSubtotal + deliveryFee) * 100) / 100;
 
     // eslint-disable-next-line no-console
-    console.log("STEP7_ORDER_ITEMS:", orderItemsData, "subtotal:", calculatedSubtotal);
+    console.log("STEP7_ORDER_ITEMS:", orderItemsData, "subtotal:", calculatedSubtotal, "deliveryFee:", deliveryFee, "freightStatus:", freightStatus);
 
     // ── 8. Upsert do Cliente (não-bloqueante) ─────────────────────
     // eslint-disable-next-line no-console
@@ -268,6 +325,7 @@ export async function POST(req: NextRequest) {
       neighborhood:  neighborhood ? String(neighborhood).trim() || null : null,
       addressJson:   address_json ? JSON.stringify(address_json) : null,
       status:        initialStatus,
+      freightStatus,
       autoAccepted,
       notes:         notes ? String(notes).trim() || null : null,
       items:         { create: orderItemsData },

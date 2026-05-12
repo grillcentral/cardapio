@@ -14,6 +14,10 @@ interface Restaurant {
   bannerUrl: string | null;
   autoAcceptOrders: boolean;
   autoPrintOnAccept: boolean;
+  deliveryMaxKm: number;
+  deliveryPricePerKm: number;
+  restaurantLat: number | null;
+  restaurantLng: number | null;
 }
 
 interface OpeningHour {
@@ -32,9 +36,17 @@ export default function ConfiguracoesPage() {
   const [hours, setHours] = useState<OpeningHour[]>([]);
   const [form, setForm] = useState({ name: "", description: "", phone: "", whatsapp: "", address: "", logoUrl: "" });
   const [autoForm, setAutoForm] = useState({ autoAcceptOrders: false, autoPrintOnAccept: false });
+  const [deliveryForm, setDeliveryForm] = useState({
+    deliveryMaxKm: 12,
+    deliveryPricePerKm: 1.5,
+    restaurantLat: "" as string,
+    restaurantLng: "" as string,
+  });
   const [saving, setSaving] = useState(false);
   const [savingHours, setSavingHours] = useState(false);
   const [savingAuto, setSavingAuto] = useState(false);
+  const [savingDelivery, setSavingDelivery] = useState(false);
+  const [gettingGps, setGettingGps] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -62,6 +74,12 @@ export default function ConfiguracoesPage() {
           autoAcceptOrders:  r.autoAcceptOrders  ?? false,
           autoPrintOnAccept: r.autoPrintOnAccept ?? false,
         });
+        setDeliveryForm({
+          deliveryMaxKm: r.deliveryMaxKm ?? 12,
+          deliveryPricePerKm: r.deliveryPricePerKm ?? 1.5,
+          restaurantLat: r.restaurantLat != null ? String(r.restaurantLat) : "",
+          restaurantLng: r.restaurantLng != null ? String(r.restaurantLng) : "",
+        });
       }
 
       if (hRes.ok) {
@@ -69,7 +87,6 @@ export default function ConfiguracoesPage() {
         if (Array.isArray(h) && h.length > 0) {
           setHours(h);
         } else {
-          // Initialize default 7 days
           setHours(DAY_NAMES.map((_, i) => ({
             id: -(i + 1),
             dayOfWeek: i,
@@ -157,6 +174,51 @@ export default function ConfiguracoesPage() {
       setTimeout(() => setSuccess(""), 3000);
     } catch { setError("Erro de conexão."); }
     finally { setSavingAuto(false); }
+  };
+
+  const handleGetGps = () => {
+    if (!navigator.geolocation) {
+      setError("Geolocalização não suportada neste navegador.");
+      return;
+    }
+    setGettingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setDeliveryForm((f) => ({
+          ...f,
+          restaurantLat: String(pos.coords.latitude.toFixed(6)),
+          restaurantLng: String(pos.coords.longitude.toFixed(6)),
+        }));
+        setGettingGps(false);
+      },
+      () => {
+        setError("Não foi possível obter localização. Verifique as permissões do navegador.");
+        setGettingGps(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const handleSaveDelivery = async () => {
+    setSavingDelivery(true);
+    setError("");
+    try {
+      const payload: Record<string, unknown> = {
+        deliveryMaxKm: Number(deliveryForm.deliveryMaxKm),
+        deliveryPricePerKm: Number(deliveryForm.deliveryPricePerKm),
+        restaurantLat: deliveryForm.restaurantLat !== "" ? Number(deliveryForm.restaurantLat) : null,
+        restaurantLng: deliveryForm.restaurantLng !== "" ? Number(deliveryForm.restaurantLng) : null,
+      };
+      const res = await fetch("/api/admin/restaurante", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) { const d = await res.json(); setError(d.error || "Erro."); return; }
+      setSuccess("Configurações de entrega salvas!");
+      setTimeout(() => setSuccess(""), 3000);
+    } catch { setError("Erro de conexão."); }
+    finally { setSavingDelivery(false); }
   };
 
   const inp: React.CSSProperties = { width: "100%", background: "#0b0d12", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#f0ede6", padding: "11px 14px", fontSize: 14, fontFamily: "DM Sans, sans-serif", outline: "none", boxSizing: "border-box" };
@@ -278,6 +340,89 @@ export default function ConfiguracoesPage() {
           <button onClick={handleSaveHours} disabled={savingHours}
             style={{ marginTop: 20, padding: "12px 28px", background: savingHours ? "#5a5650" : "linear-gradient(135deg,#c9a84c,#e4c97e)", border: "none", borderRadius: 10, cursor: savingHours ? "not-allowed" : "pointer", color: "#0b0d12", fontWeight: 700, fontSize: 14, fontFamily: "DM Sans, sans-serif" }}>
             {savingHours ? "Salvando..." : "Salvar Horários"}
+          </button>
+        </div>
+
+        {/* Configurações de Entrega */}
+        <div style={{ background: "#111420", borderRadius: 16, padding: 24, border: "1px solid rgba(255,255,255,0.07)", marginTop: 20 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: "#f0ede6", margin: "0 0 6px" }}>Configurações de Entrega</h2>
+          <p style={{ fontSize: 12, color: "#5a5650", margin: "0 0 20px", lineHeight: 1.5 }}>
+            Taxa calculada por distância em linha reta (Haversine). Mínimo R$3, valores inteiros.
+            Fórmula: <strong style={{ color: "#9e9a90" }}>máx(R$3, arredondar(km × preço/km))</strong>
+          </p>
+
+          <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 140 }}>
+              <label style={lbl}>Raio máximo de entrega (km)</label>
+              <input
+                type="number" min={1} max={50} step={0.5}
+                value={deliveryForm.deliveryMaxKm}
+                onChange={(e) => setDeliveryForm((f) => ({ ...f, deliveryMaxKm: Number(e.target.value) }))}
+                style={inp}
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: 140 }}>
+              <label style={lbl}>Preço por km (R$)</label>
+              <input
+                type="number" min={0.5} max={10} step={0.1}
+                value={deliveryForm.deliveryPricePerKm}
+                onChange={(e) => setDeliveryForm((f) => ({ ...f, deliveryPricePerKm: Number(e.target.value) }))}
+                style={inp}
+              />
+            </div>
+          </div>
+
+          {/* Preview */}
+          <div style={{ fontSize: 11, color: "#5a5650", marginBottom: 20, padding: "8px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 8 }}>
+            Exemplos com preço R${Number(deliveryForm.deliveryPricePerKm).toFixed(2)}/km:{" "}
+            {[1, 2, 3, 5, 8, 10].filter(km => km <= deliveryForm.deliveryMaxKm).map((km) => {
+              const fee = Math.max(3, Math.round(km * Number(deliveryForm.deliveryPricePerKm)));
+              return `${km}km→R$${fee}`;
+            }).join(" · ")}
+          </div>
+
+          {/* GPS Location */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={lbl}>Localização do Restaurante (GPS)</label>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
+              <div style={{ flex: 1, minWidth: 140 }}>
+                <label style={{ ...lbl, fontSize: 11 }}>Latitude</label>
+                <input
+                  type="text" placeholder="-27.5954"
+                  value={deliveryForm.restaurantLat}
+                  onChange={(e) => setDeliveryForm((f) => ({ ...f, restaurantLat: e.target.value }))}
+                  style={inp}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: 140 }}>
+                <label style={{ ...lbl, fontSize: 11 }}>Longitude</label>
+                <input
+                  type="text" placeholder="-48.5480"
+                  value={deliveryForm.restaurantLng}
+                  onChange={(e) => setDeliveryForm((f) => ({ ...f, restaurantLng: e.target.value }))}
+                  style={inp}
+                />
+              </div>
+            </div>
+            <button type="button" onClick={handleGetGps} disabled={gettingGps}
+              style={{ padding: "9px 16px", background: gettingGps ? "rgba(255,255,255,0.05)" : "rgba(201,168,76,0.15)", border: "1px solid rgba(201,168,76,0.3)", borderRadius: 8, cursor: gettingGps ? "not-allowed" : "pointer", color: gettingGps ? "#5a5650" : "#c9a84c", fontSize: 12, fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>
+              {gettingGps ? "Obtendo localização..." : "📍 Usar minha localização atual"}
+            </button>
+            {deliveryForm.restaurantLat && deliveryForm.restaurantLng && (
+              <div style={{ fontSize: 11, color: "#4caf50", marginTop: 8 }}>
+                ✓ Localização definida: {deliveryForm.restaurantLat}, {deliveryForm.restaurantLng}
+              </div>
+            )}
+            {(!deliveryForm.restaurantLat || !deliveryForm.restaurantLng) && (
+              <div style={{ fontSize: 11, color: "#e8833a", marginTop: 8 }}>
+                ⚠ Sem localização — bot não conseguirá calcular frete por distância
+              </div>
+            )}
+          </div>
+
+          <button onClick={handleSaveDelivery} disabled={savingDelivery}
+            style={{ marginTop: 4, padding: "12px 28px", background: savingDelivery ? "#5a5650" : "linear-gradient(135deg,#c9a84c,#e4c97e)", border: "none", borderRadius: 10, cursor: savingDelivery ? "not-allowed" : "pointer", color: "#0b0d12", fontWeight: 700, fontSize: 14, fontFamily: "DM Sans, sans-serif" }}>
+            {savingDelivery ? "Salvando..." : "Salvar Entrega"}
           </button>
         </div>
 

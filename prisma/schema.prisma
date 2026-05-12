@@ -16,11 +16,15 @@ model Restaurant {
   address     String?
   logoUrl     String?
   bannerUrl   String?
-  isActive          Boolean  @default(true)
-  autoAcceptOrders  Boolean  @default(false)
-  autoPrintOnAccept Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  isActive           Boolean  @default(true)
+  autoAcceptOrders   Boolean  @default(false)
+  autoPrintOnAccept  Boolean  @default(false)
+  deliveryMaxKm      Float    @default(12)
+  deliveryPricePerKm Float    @default(1.0)
+  restaurantLat      Float?
+  restaurantLng      Float?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   admins       AdminUser[]
   categories   Category[]
@@ -90,6 +94,7 @@ model Order {
   neighborhood  String?
   addressJson   String?
   status        String      @default("RECEIVED")
+  freightStatus String      @default("ok")
   autoAccepted  Boolean     @default(false)
   notes         String?
   createdAt     DateTime    @default(now())
