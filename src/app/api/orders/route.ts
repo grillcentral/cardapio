@@ -341,6 +341,70 @@ export async function POST(req: NextRequest) {
 
     // eslint-disable-next-line no-console
     console.log("STEP10_ORDER_CREATED id:", order.id, "autoAccepted:", autoAccepted);
+
+    // ── 11. Notificação WhatsApp pro restaurante (fire-and-forget) ────────────
+    void (async () => {
+      try {
+        const EVOL_BASE = "http://24.144.95.205:8080";
+        const EVOL_KEY  = "ea6325bd7f51e1143bb659457870010cec875fb6f32997f6";
+        const INSTANCE  = "grillcentral";
+        const NOTIFY_TO = "5548988362576";
+
+        const itensTxt = orderItemsData
+          .map((i) => `  • ${i.qty}x ${i.name}${i.obs ? ` (${i.obs})` : ""}`)
+          .join("\n");
+
+        const tipoEmoji =
+          order.orderType === "delivery" ? "🛵 Delivery"
+          : order.orderType === "retirada" ? "🏃 Retirada"
+          : "💬 WhatsApp";
+
+        let addrLine = "";
+        if (order.addressJson) {
+          try {
+            const a = JSON.parse(order.addressJson) as Record<string, string>;
+            if (a.endereco) addrLine = `📍 ${a.endereco}${a.complemento ? `, ${a.complemento}` : ""}`;
+          } catch { /* ignore */ }
+        }
+
+        const linhas = [
+          `🔔 *PEDIDO #${order.id} — NOVO!*`,
+          `👤 ${order.customerName} | 📞 ${order.customerPhone}`,
+          `${tipoEmoji} | 💳 ${order.payment}`,
+          ...(addrLine ? [addrLine] : []),
+          ``,
+          itensTxt,
+          ``,
+          `💰 Total: R$${Number(order.total).toFixed(2)}`,
+        ];
+
+        // 1. Mensagem de texto com resumo do pedido
+        await fetch(`${EVOL_BASE}/message/sendText/${INSTANCE}`, {
+          method:  "POST",
+          headers: { apikey: EVOL_KEY, "Content-Type": "application/json" },
+          body:    JSON.stringify({ number: NOTIFY_TO, text: linhas.join("\n") }),
+        });
+
+        // 2. Áudio "ding" como PTT para alertar sonoramente
+        await fetch(`${EVOL_BASE}/message/sendWhatsAppAudio/${INSTANCE}`, {
+          method:  "POST",
+          headers: { apikey: EVOL_KEY, "Content-Type": "application/json" },
+          body:    JSON.stringify({
+            number:   NOTIFY_TO,
+            audio:    "https://grillcardapio.com.br/notificacao.wav",
+            encoding: true,
+          }),
+        });
+
+        // eslint-disable-next-line no-console
+        console.log("STEP11_NOTIFY_OK order", order.id);
+      } catch (notifyErr) {
+        // eslint-disable-next-line no-console
+        console.warn("STEP11_NOTIFY_FAIL:", notifyErr);
+      }
+    })();
+    // ─────────────────────────────────────────────────────────────────────────
+
     // eslint-disable-next-line no-console
     console.log("=== POST /api/orders SUCCESS ===");
 
