@@ -3,10 +3,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Grill Central — Cardápio | Sabor das Carnes e Lanches",
-  description: "Grill Central - Cardápio online. Peça pelo WhatsApp! Terça a Domingo, 18:30 às 23:30.",
+  description: "Grill Central - Cardápio online. Peça pelo WhatsApp! Terça a Sábado, 18:30 às 23:00.",
   openGraph: {
     title: "Grill Central — Cardápio | Sabor das Carnes e Lanches",
-    description: "Grill Central - Cardápio online. Peça pelo WhatsApp! Terça a Domingo, 18:30 às 23:30.",
+    description: "Grill Central - Cardápio online. Peça pelo WhatsApp! Terça a Sábado, 18:30 às 23:00.",
     url: "https://grillcardapio.com.br",
     siteName: "Grill Central",
     images: [
