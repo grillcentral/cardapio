@@ -178,8 +178,6 @@ const SEMPRE: MenuCategory[] = [
 ];
 
 const PERIODS = {
-  almoco: { label: "Almoço", icon: "☀️", time: "Seg–Sáb · 11h–15h", color: "#e8a84c", data: [...ALMOCO, ...SEMPRE] },
-  noite: { label: "Noite", icon: "🌙", time: "Todos os dias · 19h–23h", color: "#7b8ee8", data: [...NOITE, ...SEMPRE] },
   tudo: { label: "Cardápio Completo", icon: "📋", time: "Todos os itens", color: "#9e9a90", data: [...ALMOCO, ...NOITE, ...SEMPRE] },
 };
 
@@ -888,7 +886,7 @@ export default function App() {
             <div style={{ fontSize: 12, color: "#9e9a90", marginBottom: 8 }}>Sabor das Carnes e Lanches</div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
               <span style={{ background: "rgba(201,168,76,0.1)", color: "#e8a84c", border: "1px solid rgba(201,168,76,0.2)", fontSize: 11, padding: "3px 10px", borderRadius: 20, display: "flex", alignItems: "center", gap: 4 }}>
-                <Clock s={11} /> Terça a Domingo · 18:30–23:30
+                <Clock s={11} /> Terça a Sábado · 18:30–23:00
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 5, color: "#5a5650", fontSize: 11 }}>
@@ -982,7 +980,7 @@ export default function App() {
           <div>
             <div style={{ fontSize: 12, fontWeight: 600, color: "#9e9a90", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Horários</div>
             <div style={{ fontSize: 12, color: "#6b6760", lineHeight: 1.9 }}>
-              <span style={{ color: "#e8a84c" }}>🔥 Grill Central</span> · Terça a Domingo · 18:30–23:30
+              <span style={{ color: "#e8a84c" }}>🔥 Grill Central</span> · Terça a Sábado · 18:30–23:00
             </div>
           </div>
           <div>
