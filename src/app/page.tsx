@@ -698,13 +698,7 @@ export default function App() {
   // Build menu data: use API data if available, else fallback to hardcoded
   const menuData = useMemo(() => {
     if (!apiCategories) return PERIODS[period].data;
-    const almocoCats = apiCategories.filter((c) => !c.badge || c.badge === "Almoço");
-    const noiteCats = apiCategories.filter((c) => !c.badge || c.badge === "Noite");
-    const sempreCats = apiCategories.filter((c) => !c.badge);
-    if (period === "almoco") return [...apiCategories.filter((c) => c.badge === "Almoço"), ...sempreCats];
-    if (period === "noite") return [...apiCategories.filter((c) => c.badge === "Noite"), ...sempreCats];
     return apiCategories;
-    void almocoCats; void noiteCats;
   }, [period, apiCategories]);
 
   useEffect(() => {
