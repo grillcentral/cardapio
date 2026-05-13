@@ -328,7 +328,7 @@ function ItemModal({ item, onClose, onAdd }: { item: MenuItem; onClose: () => vo
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, backdropFilter: "blur(6px)" }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "#111420", borderRadius: 18, width: "100%", maxWidth: 480, border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 32px 80px rgba(0,0,0,0.7)", overflow: "hidden", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
         {/* Image */}
-        <div style={{ height: 190, background: "#0b0d12", position: "relative", overflow: "hidden", flexShrink: 0 }}>
+        <div style={{ height: 260, background: "#0b0d12", position: "relative", overflow: "hidden", flexShrink: 0 }}>
           {item.img
             ? <img src={item.img} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
             : <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 72, opacity: 0.3 }}>🍽️</div>
@@ -583,7 +583,7 @@ function ListCard({ item, onAdd, onOpen, onQuickOrder, quickOrderingName }: {
   return (
     <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} onClick={() => onOpen(item)}
       style={{ borderRadius: 12, overflow: "hidden", cursor: "pointer", position: "relative", background: hov ? "#141720" : "#111420", border: "1px solid rgba(255,255,255,0.07)", boxShadow: hov ? "0 8px 28px rgba(0,0,0,0.5)" : "0 2px 8px rgba(0,0,0,0.3)", transform: hov ? "translateY(-3px)" : "translateY(0)", transition: "all 0.18s ease", display: "flex", flexDirection: "column" }}>
-      <div style={{ height: 160, background: "#0b0d12", position: "relative", overflow: "hidden", flexShrink: 0 }}>
+      <div style={{ height: 210, background: "#0b0d12", position: "relative", overflow: "hidden", flexShrink: 0 }}>
         {item.img
           ? <img src={item.img} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.3s", transform: hov ? "scale(1.06)" : "scale(1)" }} onError={(e) => { const p = (e.target as HTMLImageElement).parentNode as HTMLElement; p.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;font-size:44px;opacity:0.2">🍽️</div>'; }} />
           : <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 44, opacity: 0.2 }}>🍽️</div>
