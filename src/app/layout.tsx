@@ -4,6 +4,22 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Grill Central — Cardápio | Sabor das Carnes e Lanches",
   description: "Grill Central - Cardápio online. Peça pelo WhatsApp! Terça a Domingo, 18:30 às 23:30.",
+  openGraph: {
+    title: "Grill Central — Cardápio | Sabor das Carnes e Lanches",
+    description: "Grill Central - Cardápio online. Peça pelo WhatsApp! Terça a Domingo, 18:30 às 23:30.",
+    url: "https://grillcardapio.com.br",
+    siteName: "Grill Central",
+    images: [
+      {
+        url: "https://grillcardapio.com.br/images/restaurant-logo.jpeg",
+        width: 800,
+        height: 800,
+        alt: "Grill Central — Sabor das Carnes e Lanches",
+      },
+    ],
+    locale: "pt_BR",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
